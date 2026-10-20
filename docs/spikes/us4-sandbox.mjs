@@ -81,7 +81,12 @@ const holdDef = (key) => HOLDS.find((h) => h.key === key);
 
 // Personal details of sandbox payers stay out of the committed log; ids stay in.
 function redact(value) {
-  if (typeof value === 'string') return value === BUYER ? '<buyer email>' : value === SELLER ? '<seller email>' : value;
+  if (typeof value === 'string') {
+    if (value === BUYER) return '<buyer email>';
+    if (value === SELLER) return '<seller email>';
+    if (/@business\.example\.com$/.test(value)) return '<platform email>';
+    return /@personal\.example\.com$/.test(value) ? '<sandbox email>' : value;
+  }
   if (Array.isArray(value)) return value.map(redact);
   if (value && typeof value === 'object') {
     const out = {};
