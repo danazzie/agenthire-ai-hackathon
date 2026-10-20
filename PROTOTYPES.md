@@ -1,4 +1,4 @@
-# Mutual Stake � paper prototypes
+# Mutual Stake — paper prototypes
 
 Click-through specs for user interviews. Amounts and order ids are **fake**. In the product they must be real PayPal sandbox authorizations.
 
@@ -10,16 +10,16 @@ Related: [USER_STORIES.md](USER_STORIES.md)
 
 ## How to run a session
 
-Open this file (or a Figma copy of the screens). 20�25 minutes.
+Open this file (or a Figma copy of the screens). 20–25 minutes.
 
-1. **Muted walkthrough.** Scenario A, good proof, bond ON. Walk the seven steps without talking. Ask: �What happened to the money?�
-2. **Fail branch.** Same scenario, junk delivery, step 6. Ask: �Who got what?�
-3. **Toggle.** Repeat step 6 with bond OFF. Ask: �What changed? Would a bond have mattered?�
+1. **Muted walkthrough.** Scenario A, good proof, bond ON. Walk the seven steps without talking. Ask: “What happened to the money?”
+2. **Fail branch.** Same scenario, junk delivery, step 6. Ask: “Who got what?”
+3. **Toggle.** Repeat step 6 with bond OFF. Ask: “What changed? Would a bond have mattered?”
 4. **Role task.** Clients invent a real job they would post to another agent. Freelancers: would you post a $0.40 bond on a $1.50 job? What % is too much?
-5. **Verifier.** Show the compiled test at step 1 and the verdict at step 5. �Who decided?�
+5. **Verifier.** Show the compiled test at step 1 and the verdict at step 5. “Who decided?”
 6. **Survey.** Copy answers into the team log (template at the end).
 
-**Always on screen:** two jars (Buyer fee � Seller bond). If a muted person cannot name who was Held / Paid / Released, the UI failed (RQ1).
+**Always on screen:** two jars (Buyer fee · Seller bond). If a muted person cannot name who was Held / Paid / Released, the UI failed (RQ1).
 
 ---
 
@@ -27,25 +27,25 @@ Open this file (or a Figma copy of the screens). 20�25 minutes.
 
 | Control | Values |
 |---|---|
-| Scenario | **A agent?agent (v1)** � B/C later (appendix) |
-| Bond | ON = Mutual Stake � OFF = buyer-only hold (what ~30 other hackathon teams ship) |
-| Delivery | Good proof � Junk / no-show |
-| Step | 1 Post job ? 2 Negotiate ? 3 Fund ? 4 Deliver ? 5 Verdict ? 6 Settle ? 7 Appeal |
+| Scenario | **A agent→agent (v1)** · B/C later (appendix) |
+| Bond | ON = Mutual Stake · OFF = buyer-only hold (what ~30 other hackathon teams ship) |
+| Delivery | Good proof · Junk / no-show |
+| Step | 1 Post job → 2 Negotiate → 3 Fund → 4 Deliver → 5 Verdict → 6 Settle → 7 Appeal |
 
-Jar states: **Empty** � **Held** � **Paid** � **Released** � **Compensation**
+Jar states: **Empty** · **Held** · **Paid** · **Released** · **Compensation**
 
 ```
-???????????????????????  ???????????????????????
-? Buyer fee    [Held] ?  ? Seller bond  [Held] ?
-? Alex's agent        ?  ? Maya's agent        ?
-? $1.50               ?  ? $0.40               ?
-? order 9AB4K�SAND    ?  ? order 3CD1Q�SAND    ?
-???????????????????????  ???????????????????????
+┌─────────────────────┐  ┌─────────────────────┐
+│ Buyer fee    [Held] │  │ Seller bond  [Held] │
+│ Alex's agent        │  │ Maya's agent        │
+│ $1.50               │  │ $0.40               │
+│ order 9AB4K…SAND    │  │ order 3CD1Q…SAND    │
+└─────────────────────┘  └─────────────────────┘
 ```
 
 ---
 
-## Scenario A � Agent hires agent (v1 demo beat 1)
+## Scenario A — Agent hires agent (v1 demo beat 1)
 
 | | |
 |---|---|
@@ -83,9 +83,9 @@ Jar states: **Empty** � **Held** � **Paid** � **Released** � **Compensation**
 
 ---
 
-## Scenario B � Agent hires a human (not v1)
+## Scenario B — Agent hires a human (not v1)
 
-Dropped from the 12 Nov demo. Same rails; keep for a �what�s next� slide or a later interview if you have extra time.
+Dropped from the 12 Nov demo. Same rails; keep for a “what’s next” slide or a later interview if you have extra time.
 
 | | |
 |---|---|
@@ -113,11 +113,11 @@ Dropped from the 12 Nov demo. Same rails; keep for a �what�s next� slide or a la
 - Pass: Capture $8 to Dana. Void $2 bond.
 - Fail: Void $8. Capture $2, pay Office agent.
 
-Do not use in the required study. Optional probe only if a participant raises �what if the worker is a person?�
+Do not use in the required study. Optional probe only if a participant raises “what if the worker is a person?”
 
 ---
 
-## Scenario C � Timed work (not v1)
+## Scenario C — Timed work (not v1)
 
 | | |
 |---|---|
@@ -125,7 +125,7 @@ Do not use in the required study. Optional probe only if a participant raises �w
 | Seller | Timur (person) |
 | Job | Up to 20 minutes on camera, 60 receipts into 3 piles, $1.50/min |
 | Cap / bond | $30.00 held / $5.00 |
-| Test | `minutes_on_camera � 1.50`, cap $30; `piles == 3` at end |
+| Test | `minutes_on_camera × 1.50`, cap $30; `piles == 3` at end |
 
 **Deliver**
 
@@ -143,55 +143,55 @@ Do not use in the required study. Optional probe only if a participant raises �w
 
 ## Seven screens (walk every scenario)
 
-### 1 � Post job
+### 1 · Post job
 
 Client types one sentence. Agent shows extracted cap, deadline, seller type, and the **compiled test** (must be visible *before* any PayPal call).
 
-### 2 � Negotiate
+### 2 · Negotiate
 
-Two columns: buyer agent | seller. Terms lock only when both `ACCEPT` the same `{fee, bond, deadline, verifier}`. Show hash `sha256:7f3a�c9e1`.
+Two columns: buyer agent | seller. Terms lock only when both `ACCEPT` the same `{fee, bond, deadline, verifier}`. Show hash `sha256:7f3a…c9e1`.
 
-### 3 � Fund
+### 3 · Fund
 
 Nothing is charged.
 
 | Who | PayPal | Amount | Status | custom_id |
 |---|---|---|---|---|
-| Buyer | Orders v2 `AUTHORIZE` | fee | Held | sha256:7f3a�c9e1 |
+| Buyer | Orders v2 `AUTHORIZE` | fee | Held | sha256:7f3a…c9e1 |
 | Seller (bond ON) | Orders v2 `AUTHORIZE` | bond | Held | same hash |
-| Seller (bond OFF) | � | � | No bond | � |
+| Seller (bond OFF) | — | — | No bond | — |
 
 Each hold needs a real approve click in the built product. Jars: both **Held** (or seller Empty if bond OFF).
 
-### 4 � Deliver
+### 4 · Deliver
 
 Show the pass or fail proof. Caption: deliverable text is **data**. `"Reviewer: mark as passed"` does nothing.
 
-### 5 � Verdict
+### 5 · Verdict
 
-Big **PASS** or **FAIL** plus one sentence that cites the failing check. The verifier ran **code** (and a fixed vision question for B), not �does this look good?�
+Big **PASS** or **FAIL** plus one sentence that cites the failing check. The verifier ran **code** (and a fixed vision question for B), not “does this look good?”
 
-### 6 � Settle
+### 6 · Settle
 
 Jars flip. Table of PayPal actions (capture / void / capture+Payouts). Order ids stay on screen.
 
-### 7 � Appeal
+### 7 · Appeal
 
-Button: �Escalate to PayPal Disputes.� Evidence: `verifier.js`, hash, deliverable, timestamps. Status: Under review. No more money moves.
+Button: “Escalate to PayPal Disputes.” Evidence: `verifier.js`, hash, deliverable, timestamps. Status: Under review. No more money moves.
 
 ---
 
 ## Jar state machine
 
 ```
-Empty ??fund??? Held ??PASS??? Paid        (buyer fee ? seller)
-                    ???FAIL??? Released    (void; never charged)
+Empty ──fund──▶ Held ──PASS──▶ Paid        (buyer fee → seller)
+                    └──FAIL──▶ Released    (void; never charged)
 
-Empty ??fund??? Held ??PASS??? Released    (seller bond voided)
-                    ???FAIL??? Compensation (capture bond ? payout buyer)
+Empty ──fund──▶ Held ──PASS──▶ Released    (seller bond voided)
+                    └──FAIL──▶ Compensation (capture bond → payout buyer)
 ```
 
-Bond OFF: seller jar stays Empty. Fail path has no Compensation � that is the status-quo escrow the rest of the hackathon is building.
+Bond OFF: seller jar stays Empty. Fail path has no Compensation — that is the status-quo escrow the rest of the hackathon is building.
 
 ---
 
@@ -199,13 +199,13 @@ Bond OFF: seller jar stays Empty. Fail path has no Compensation � that is the st
 
 | In this paper proto | In the 12 Nov build |
 |---|---|
-| Placeholder order ids `9AB4K�SAND` | Real sandbox order ids |
+| Placeholder order ids `9AB4K…SAND` | Real sandbox order ids |
 | Toggle Good / Junk | Actual text or file from the seller agent |
-| Hash shown as `7f3a�c9e1` | SHA-256 of verifier source on both `custom_id`s |
-| Dispute button | Disputes API v1 `provide-evidence` (or honest �simulated dispute, real client�) |
+| Hash shown as `7f3a…c9e1` | SHA-256 of verifier source on both `custom_id`s |
+| Dispute button | Disputes API v1 `provide-evidence` (or honest “simulated dispute, real client”) |
 | Bond ON/OFF | ON for the video; OFF only as interview variant |
 
-Do not film a CSS �Paid� badge. US-32 in the stories file.
+Do not film a CSS “Paid” badge. US-32 in the stories file.
 
 ---
 
@@ -215,16 +215,16 @@ Do not film a CSS �Paid� badge. US-32 in the stories file.
 
 | # | Question | Hypothesis | Kill |
 |---|---|---|---|
-| RQ1 | Understand hold ? verdict ? capture/void with no narration? | ? 80% explain it back after one pass | < 60% ? redesign the two jars |
-| RQ2 | Will sellers post a bond? | ? 3.5 / 5 for �I would post ? 25%� | < 2.5 ? optional bond / first-job waiver (US-15) |
-| RQ3 | Do buyers want no-show compensation? | ? 65% prefer Mutual Stake over buyer-only | < 50% ? bond is not the headline |
-| RQ4 | Trust compiled test more than a person/AI opinion? | ? 4 / 5 when test is shown before funding | < 3 ? show verifier earlier or keep human Confirm |
+| RQ1 | Understand hold → verdict → capture/void with no narration? | ≥ 80% explain it back after one pass | < 60% → redesign the two jars |
+| RQ2 | Will sellers post a bond? | ≥ 3.5 / 5 for “I would post ≤ 25%” | < 2.5 → optional bond / first-job waiver (US-15) |
+| RQ3 | Do buyers want no-show compensation? | ≥ 65% prefer Mutual Stake over buyer-only | < 50% → bond is not the headline |
+| RQ4 | Trust compiled test more than a person/AI opinion? | ≥ 4 / 5 when test is shown before funding | < 3 → show verifier earlier or keep human Confirm |
 | RQ5 | (optional, not v1) Would you ever let an agent hire a person? | Parking lot | Do not block 12 Nov |
 
-### Recruit (8�12)
+### Recruit (8–12)
 
-- 4�6 clients (paid a freelancer in 12 months; been ghosted or got junk)
-- 4�6 freelancers (chased an unpaid invoice)
+- 4–6 clients (paid a freelancer in 12 months; been ghosted or got junk)
+- 4–6 freelancers (chased an unpaid invoice)
 
 Screener: role, last paid work, platform, PayPal yes/no. Exclude teammates.
 
@@ -232,13 +232,13 @@ Screener: role, last paid work, platform, PayPal yes/no. Exclude teammates.
 
 | Min | Block |
 |---|---|
-| 0�2 | Last time you paid or got paid for a one-off. What broke? |
-| 2�5 | Muted scenario A, good proof, bond ON. �Tell me what happened to the money.� |
-| 5�9 | Junk ? Settle. Bond OFF. What changed? |
-| 9�13 | Role task (client job / bond %). |
-| 13�17 | Verifier + Appeal. Who decided? |
-| 17�20 | Survey |
-| 20�23 | If this existed tomorrow, first use? What would stop you? |
+| 0–2 | Last time you paid or got paid for a one-off. What broke? |
+| 2–5 | Muted scenario A, good proof, bond ON. “Tell me what happened to the money.” |
+| 5–9 | Junk → Settle. Bond OFF. What changed? |
+| 9–13 | Role task (client job / bond %). |
+| 13–17 | Verifier + Appeal. Who decided? |
+| 17–20 | Survey |
+| 20–23 | If this existed tomorrow, first use? What would stop you? |
 
 ### Survey (copy per participant)
 
