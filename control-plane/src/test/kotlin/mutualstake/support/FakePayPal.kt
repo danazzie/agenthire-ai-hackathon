@@ -3,9 +3,13 @@ package mutualstake.support
 import mutualstake.money.Money
 import mutualstake.paypal.CreateOrderRequest
 import mutualstake.paypal.PayPalAuthorization
+import mutualstake.paypal.PayPalCapture
 import mutualstake.paypal.PayPalException
 import mutualstake.paypal.PayPalGateway
 import mutualstake.paypal.PayPalOrder
+import mutualstake.paypal.PayPalPayoutBatch
+import mutualstake.paypal.PayPalPayoutItem
+import mutualstake.paypal.PayoutRequest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
@@ -42,12 +46,31 @@ class FakePayPal(private val clock: Clock) : PayPalGateway {
         @Volatile var voidRequestId: String? = null,
     )
 
+    class Capture(
+        val id: String, val authorizationId: String, val orderId: String, @Volatile var status: String, val amount: Money, val fee: Money,
+        val customId: String, val requestId: String, val createdAt: Instant,
+    )
+
+    class Payout(val batchId: String, val senderBatchId: String, val receiver: String, val amount: Money, val itemId: String, val requestId: String)
+
     @Volatile override var configured: Boolean = true
     @Volatile var webhookVerdict: Boolean = true
     /** Runs after PayPal has placed a hold but before the caller sees the answer: for racing a cancel. */
     @Volatile var afterAuthorize: (orderId: String) -> Unit = {}
+    /** Runs after PayPal has captured but before the caller sees it: throw here to lose the answer (US-17). */
+    @Volatile var afterCapture: (captureId: String) -> Unit = {}
+    /** Runs after PayPal has created the payout but before the caller sees it: throw here to lose the answer. */
+    @Volatile var afterPayout: (batchId: String) -> Unit = {}
+    /** The status a new capture starts in. The sandbox answered COMPLETED. */
+    @Volatile var captureStatus: String = "COMPLETED"
+    /** What a payout item reports when read back. The sandbox reached SUCCESS in about 24 s. */
+    @Volatile var payoutItemStatus: String = "SUCCESS"
+    /** Whether a duplicate payout's refusal links the batch that exists. PayPal's did. */
+    @Volatile var duplicatePayoutLinks: Boolean = true
 
     val orders = ConcurrentHashMap<String, Order>()
+    val captures = ConcurrentHashMap<String, Capture>()
+    val payouts = ConcurrentHashMap<String, Payout>()
     val requestIds = CopyOnWriteArrayList<String>()
     private val byRequestId = ConcurrentHashMap<String, String>()
     private val counter = AtomicInteger()
@@ -56,10 +79,24 @@ class FakePayPal(private val clock: Clock) : PayPalGateway {
         configured = true
         webhookVerdict = true
         afterAuthorize = {}
+        afterCapture = {}
+        afterPayout = {}
+        captureStatus = "COMPLETED"
+        payoutItemStatus = "SUCCESS"
+        duplicatePayoutLinks = true
         orders.clear()
+        captures.clear()
+        payouts.clear()
         requestIds.clear()
         byRequestId.clear()
     }
+
+    fun completeCapture(captureId: String) {
+        captures.getValue(captureId).status = "COMPLETED"
+    }
+
+    /** PayPal's US fee, 3.49% + 49 cents, never more than the amount: on a 40-cent bond it is all 40 (seen in the spike). */
+    private fun feeOn(amount: Money): Money = Money(minOf(amount.minor, (amount.minor * 349 + 5000) / 10000 + 49))
 
     /** The payer clicking approve in sandbox checkout. */
     fun approve(orderId: String, payerEmail: String) {
@@ -119,13 +156,71 @@ class FakePayPal(private val clock: Clock) : PayPalGateway {
         }
     }
 
+    override fun captureAuthorization(authorizationId: String, requestId: String, holdId: UUID): PayPalCapture {
+        if (!configured) throw PayPalException.noCredentials("capture_authorization")
+        requestIds += requestId
+        val order = orderOf(authorizationId)
+        val capture = synchronized(order) {
+            val existing = captures.values.firstOrNull { it.authorizationId == authorizationId }
+            if (existing != null) {
+                if (existing.requestId == requestId) return view(existing)
+                throw unprocessable("capture_authorization", "AUTHORIZATION_ALREADY_CAPTURED")
+            }
+            val auth = requireNotNull(order.authorization)
+            if (auth.status == "VOIDED") throw unprocessable("capture_authorization", "AUTHORIZATION_VOIDED")
+            val amount = requireNotNull(auth.amount)
+            val created = Capture(
+                "FAKE-CAP-${counter.incrementAndGet()}", authorizationId, order.id, captureStatus, amount, feeOn(amount), order.customId, requestId,
+                clock.instant().truncatedTo(ChronoUnit.SECONDS),
+            )
+            captures[created.id] = created
+            order.authorization = auth.copy(status = "CAPTURED")
+            created
+        }
+        afterCapture(capture.id)
+        return view(capture)
+    }
+
+    override fun getCapture(captureId: String, holdId: UUID?): PayPalCapture =
+        view(captures[captureId] ?: throw PayPalException("get_capture", 404, "RESOURCE_NOT_FOUND", "INVALID_RESOURCE_ID", "fake-debug", null))
+
+    override fun createPayout(request: PayoutRequest): PayPalPayoutBatch {
+        if (!configured) throw PayPalException.noCredentials("create_payout")
+        requestIds += request.requestId
+        val payout = synchronized(payouts) {
+            payouts.values.firstOrNull { it.senderBatchId == request.senderBatchId }?.let { existing ->
+                throw PayPalException(
+                    "create_payout", 400, "USER_BUSINESS_ERROR", "Batch with given sender_batch_id already exists", "fake-debug", "User business error.",
+                    field = "SENDER_BATCH_ID",
+                    links = if (duplicatePayoutLinks) listOf("https://api.sandbox.paypal.com/v1/payments/payouts/${existing.batchId}") else emptyList(),
+                )
+            }
+            val n = counter.incrementAndGet()
+            Payout("FAKEBATCH$n", request.senderBatchId, request.receiverEmail, request.amount, "FAKEITEM$n", request.requestId).also { payouts[it.batchId] = it }
+        }
+        afterPayout(payout.batchId)
+        return PayPalPayoutBatch(payout.batchId, "PENDING", payout.senderBatchId, emptyList())
+    }
+
+    override fun getPayoutBatch(batchId: String, holdId: UUID?): PayPalPayoutBatch {
+        val payout = payouts[batchId] ?: throw PayPalException("get_payout_batch", 404, "RESOURCE_NOT_FOUND", null, "fake-debug", null)
+        val status = payoutItemStatus
+        val item = PayPalPayoutItem(payout.itemId, "FAKE-TXN-${payout.itemId}", status, payout.amount, Money(25), clock.instant().truncatedTo(ChronoUnit.SECONDS))
+        return PayPalPayoutBatch(payout.batchId, if (status == "SUCCESS") "SUCCESS" else "PROCESSING", payout.senderBatchId, listOf(item))
+    }
+
     override fun verifyWebhook(headers: Map<String, String>, rawBody: String): Boolean = webhookVerdict
 
     private fun orderOf(authorizationId: String): Order = orders.values.single { it.authorization?.id == authorizationId }
 
     private fun unprocessable(operation: String, issue: String) = PayPalException(operation, 422, "UNPROCESSABLE_ENTITY", issue, "fake-debug", null)
 
-    private fun view(o: Order) = PayPalOrder(o.id, o.status, o.customId, o.payerEmail, "https://www.sandbox.paypal.com/checkoutnow?token=${o.id}", o.authorization)
+    private fun view(o: Order) = PayPalOrder(
+        o.id, o.status, o.customId, o.payerEmail, "https://www.sandbox.paypal.com/checkoutnow?token=${o.id}", o.authorization,
+        captures.values.firstOrNull { it.orderId == o.id }?.let(::view),
+    )
+
+    private fun view(c: Capture) = PayPalCapture(c.id, c.status, c.amount, c.fee, c.customId, if (c.status == "PENDING") "OTHER" else null, c.createdAt, c.authorizationId)
 }
 
 @TestConfiguration(proxyBeanMethods = false)

@@ -10,12 +10,28 @@ import java.time.Instant
 import java.util.UUID
 
 /** Work done outside the request: PayPal calls and verifier runs. Written in the same transaction as the state change that needs it. */
-enum class OutboxType { CREATE_ORDER, CHECK_ORDER, AUTHORIZE, VOID, RUN_VERIFIER }
+enum class OutboxType { CREATE_ORDER, CHECK_ORDER, AUTHORIZE, VOID, RUN_VERIFIER, CAPTURE, CHECK_CAPTURE, PAYOUT, CHECK_PAYOUT }
 
 /** A failure that knows what it is: [reason] lands on the row that needs attention; [retryable] says whether waiting can help. */
 interface ClassifiedFailure {
     val reason: String
     val retryable: Boolean
+
+    /** A fixed wait instead of exponential backoff, e.g. polling something PayPal is still processing. */
+    val retryAfter: Duration? get() = null
+
+    /** How long to keep trying before giving up and flagging. */
+    val maxAttempts: Int? get() = null
+}
+
+/**
+ * PayPal has not finished yet (a PENDING capture, a payout still processing). Not a failure: it is polled
+ * every few seconds, and only flagged if it is still pending after [maxAttempts] reads.
+ */
+class StillPendingException(override val reason: String) : RuntimeException(reason), ClassifiedFailure {
+    override val retryable = true
+    override val retryAfter: Duration = Duration.ofSeconds(5)
+    override val maxAttempts = 120
 }
 
 data class OutboxEvent(val id: UUID, val aggregateId: UUID, val type: OutboxType, val attempts: Int, val createdAt: Instant = Instant.EPOCH)

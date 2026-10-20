@@ -16,6 +16,7 @@ import mutualstake.party.Party
 import mutualstake.party.PartyRepository
 import mutualstake.paypal.PayPalGateway
 import mutualstake.session.SessionService
+import mutualstake.settlement.SettlementService
 import mutualstake.verifier.VerifierRepository
 import mutualstake.verifier.VerifierService
 import org.springframework.http.HttpStatus
@@ -69,6 +70,7 @@ class ContractController(
     private val props: MutualStakeProperties,
     private val verifierService: VerifierService,
     private val deliveryService: DeliveryService,
+    private val settlement: SettlementService,
 ) {
     @GetMapping("/status")
     fun status() = StatusView(paypal.configured, props.paypal.webhooksConfigured, parties.all().map(::PartyView), SessionView(sessions.current()))
@@ -111,6 +113,13 @@ class ContractController(
         deliveryService.submit(id, party(handle), request.text)
         return ResponseEntity.status(HttpStatus.CREATED).body(views.of(contracts.find(id)!!))
     }
+
+    /**
+     * US-16: a human confirms the first capture of a session. It only releases the settlement the verdict
+     * already decided; it cannot capture on its own. Not an agent tool: the agents never get this endpoint.
+     */
+    @PostMapping("/contracts/{id}/confirm")
+    fun confirm(@PathVariable id: UUID): ContractView = views.of(settlement.confirm(id))
 
     @PostMapping("/contracts/{id}/cancel")
     fun cancel(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID): ContractView {

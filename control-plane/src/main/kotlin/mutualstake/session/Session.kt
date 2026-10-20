@@ -29,6 +29,9 @@ class SessionRepository(private val jdbc: JdbcClient) {
 
     fun lockForUpdate(id: UUID): Session = jdbc.sql("select * from session where id = :id for update").param("id", id).query(row).single()
 
+    /** A plain read, for views. */
+    fun lockFree(id: UUID): Session = jdbc.sql("select * from session where id = :id").param("id", id).query(row).single()
+
     fun isArchived(id: UUID): Boolean =
         jdbc.sql("select archived_at is not null from session where id = :id").param("id", id).query(Boolean::class.java).single()
 
@@ -39,6 +42,11 @@ class SessionRepository(private val jdbc: JdbcClient) {
     }
 
     fun archiveCurrent(): Int = jdbc.sql("update session set archived_at = now() where archived_at is null").update()
+
+    /** US-16: a human confirmed this session's first capture; later ones run inside the mandate. */
+    fun confirmFirstCapture(id: UUID) {
+        jdbc.sql("update session set first_capture_confirmed_at = now() where id = :id and first_capture_confirmed_at is null").param("id", id).update()
+    }
 
     /** Locked deals count against the mandate until they are cancelled. */
     fun usage(id: UUID): MandateUsage =

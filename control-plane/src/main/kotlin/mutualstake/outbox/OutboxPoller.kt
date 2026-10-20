@@ -55,13 +55,13 @@ class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHa
         } catch (e: Exception) {
             val classified = e as? ClassifiedFailure
             if (classified == null) log.warn("outbox {} for {} failed (attempt {})", event.type, event.aggregateId, event.attempts, e)
-            fail(handler, event, classified?.reason ?: "${e.javaClass.simpleName}: ${e.message}", classified?.retryable ?: true)
+            fail(handler, event, classified?.reason ?: "${e.javaClass.simpleName}: ${e.message}", classified?.retryable ?: true, classified)
         }
     }
 
-    private fun fail(handler: OutboxHandler, event: OutboxEvent, reason: String, retryable: Boolean) {
-        if (retryable && event.attempts < MAX_ATTEMPTS) {
-            outbox.retryLater(event.id, backoff(event.attempts), reason)
+    private fun fail(handler: OutboxHandler, event: OutboxEvent, reason: String, retryable: Boolean, classified: ClassifiedFailure?) {
+        if (retryable && event.attempts < (classified?.maxAttempts ?: MAX_ATTEMPTS)) {
+            outbox.retryLater(event.id, classified?.retryAfter ?: backoff(event.attempts), reason)
         } else {
             // Nothing more will happen on its own: say so where people look, rather than retry forever.
             outbox.markDead(event.id, reason)

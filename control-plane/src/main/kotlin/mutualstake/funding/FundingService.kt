@@ -10,6 +10,7 @@ import mutualstake.hold.HoldSide
 import mutualstake.hold.HoldState
 import mutualstake.ledger.LedgerEntry
 import mutualstake.ledger.LedgerEvent
+import mutualstake.settlement.SettlementService
 import mutualstake.ledger.LedgerRepository
 import mutualstake.outbox.OutboxRepository
 import mutualstake.outbox.OutboxType
@@ -35,6 +36,7 @@ class FundingService(
     private val verifiers: VerifierRepository,
     private val ledger: LedgerRepository,
     private val outbox: OutboxRepository,
+    private val settlement: SettlementService,
     private val clock: Clock,
 ) {
     /** Runs inside the transaction that locks the terms: both holds, each with its order request queued. */
@@ -96,19 +98,6 @@ class FundingService(
         return true
     }
 
-    @Transactional
-    fun recordVoided(holdId: UUID, authorization: PayPalAuthorization) {
-        val hold = holds.lockForUpdate(holdId)
-        if (hold.state != HoldState.VOID_REQUESTED || authorization.status != VOIDED) return
-        holds.transition(holdId, HoldState.VOID_REQUESTED, HoldState.VOIDED)
-        ledger.record(
-            LedgerEntry(
-                UUID.randomUUID(), hold.contractId, hold.id, LedgerEvent.HOLD_VOIDED, authorization.amount ?: hold.amount,
-                parties.byId(hold.payerId).handle, authorization.id, authorization.updatedAt ?: clock.instant(),
-            ),
-        )
-    }
-
     /** TERMS_LOCKED -> CANCELLED: whatever is held is voided; whatever was never held is abandoned. */
     @Transactional
     fun cancel(contractId: UUID, cause: String) {
@@ -129,13 +118,14 @@ class FundingService(
         }
     }
 
-    /** BOTH_HELD past the deadline with nothing delivered. Settling the no-show is step 5. */
+    /** BOTH_HELD past the deadline with nothing delivered: a no-show, which settles like a FAIL (US-4). */
     @Transactional
     fun expire(contractId: UUID) {
         val contract = contracts.lockForUpdate(contractId) ?: return
         val deadline = contract.deadlineAt ?: return
         if (contract.state == ContractState.BOTH_HELD && deadline.isBefore(clock.instant())) {
             contracts.transition(contractId, ContractState.BOTH_HELD, ContractState.EXPIRED, "deadline passed with no delivery")
+            settlement.plan(contractId)
         }
     }
 

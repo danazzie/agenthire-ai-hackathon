@@ -37,6 +37,10 @@ class ContractRepository(private val jdbc: JdbcClient) {
             version = rs.getInt("version"),
             createdAt = rs.instant("created_at"),
             updatedAt = rs.instant("updated_at"),
+            settlementPlannedAt = rs.instantOrNull("settlement_planned_at"),
+            settlementConfirmedAt = rs.instantOrNull("settlement_confirmed_at"),
+            needsAttention = rs.getBoolean("needs_attention"),
+            attentionReason = rs.getString("attention_reason"),
         )
     }
 
@@ -113,6 +117,44 @@ class ContractRepository(private val jdbc: JdbcClient) {
             select c.id from contract c
             where c.state = 'TERMS_LOCKED'
               and (select count(*) from hold h where h.contract_id = c.id and h.state = 'HELD') = 2
+            """,
+        ).query(UUID::class.java).list()
+
+    fun markPlanned(id: UUID, confirmedByHuman: Boolean) {
+        jdbc.sql(
+            """
+            update contract set settlement_planned_at = now(),
+                                settlement_confirmed_at = case when :human then now() else settlement_confirmed_at end
+            where id = :id and settlement_planned_at is null
+            """,
+        ).param("human", confirmedByHuman).param("id", id).update()
+    }
+
+    fun flag(id: UUID, reason: String) {
+        jdbc.sql("update contract set needs_attention = true, attention_reason = :r where id = :id").param("r", reason.take(500)).param("id", id).update()
+    }
+
+    fun clearFlag(id: UUID) {
+        jdbc.sql("update contract set needs_attention = false, attention_reason = null where id = :id and needs_attention").param("id", id).update()
+    }
+
+    /** Verdicts whose settlement is not queued yet although the session's first capture is confirmed (repair). */
+    fun awaitingSettlementPlan(): List<UUID> =
+        jdbc.sql(
+            """
+            select c.id from contract c join session s on s.id = c.session_id
+            where c.state in ('PASS', 'FAIL', 'EXPIRED') and c.settlement_planned_at is null
+              and s.first_capture_confirmed_at is not null and not c.needs_attention
+            """,
+        ).query(UUID::class.java).list()
+
+    /** Settling contracts whose holds have both reached their end (repair for the race the row lock prevents). */
+    fun settlingWithFinalHolds(): List<UUID> =
+        jdbc.sql(
+            """
+            select c.id from contract c
+            where c.state in ('PASS', 'FAIL', 'EXPIRED')
+              and (select count(*) from hold h where h.contract_id = c.id and h.state in ('PAID_OUT', 'VOIDED')) = 2
             """,
         ).query(UUID::class.java).list()
 

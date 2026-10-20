@@ -141,6 +141,26 @@ class HoldRepository(private val jdbc: JdbcClient) {
         if (spec.update() != 1) throw StaleStateException(id, from.name)
     }
 
+    fun bySenderBatchId(senderBatchId: String): Hold? =
+        jdbc.sql("select * from hold where sender_batch_id = :s").param("s", senderBatchId).query(row).optional().orElse(null)
+
+    fun byPayoutBatchId(batchId: String): Hold? =
+        jdbc.sql("select * from hold where payout_batch_id = :b").param("b", batchId).query(row).optional().orElse(null)
+
+    /** Buyer fees already being or been captured in a session: what US-25's cap has spent. */
+    fun capturedFeesInSession(sessionId: UUID): Money =
+        jdbc.sql(
+            """
+            select coalesce(sum(h.amount_minor), 0) from hold h join contract c on c.id = h.contract_id
+            where c.session_id = :s and h.side = 'BUYER_FEE' and h.state in ('CAPTURE_REQUESTED', 'CAPTURED', 'PAYOUT_REQUESTED', 'PAID_OUT')
+            """,
+        ).param("s", sessionId).query(Long::class.java).single().let(::Money)
+
+    /** Clears a flag once PayPal reports progress again. */
+    fun clearFlag(id: UUID) {
+        jdbc.sql("update hold set needs_attention = false, attention_reason = null where id = :id and needs_attention").param("id", id).update()
+    }
+
     /** Needs-attention is a flag beside the state, so the money stage is never lost. */
     fun flag(id: UUID, reason: String) {
         jdbc.sql("update hold set needs_attention = true, attention_reason = :reason, updated_at = now() where id = :id")

@@ -7,6 +7,7 @@ import mutualstake.contract.ContractState
 import mutualstake.outbox.OutboxRepository
 import mutualstake.outbox.OutboxType
 import mutualstake.party.Party
+import mutualstake.settlement.SettlementService
 import mutualstake.verifier.RunOutcome
 import mutualstake.verifier.VerifierRunResult
 import org.slf4j.LoggerFactory
@@ -27,6 +28,7 @@ class DeliveryService(
     private val blobs: BlobStore,
     private val runs: VerifierRunLog,
     private val outbox: OutboxRepository,
+    private val settlement: SettlementService,
     private val props: MutualStakeProperties,
     private val clock: Clock,
 ) {
@@ -73,6 +75,8 @@ class DeliveryService(
         deliveries.setVerdict(deliveryId, run.outcome.name, run.failingCheck, "verifier_run:$runId")
         val next = if (run.outcome == RunOutcome.PASS) ContractState.PASS else ContractState.FAIL
         contracts.transition(contract.id, ContractState.DELIVERED, next, "verifier: ${run.summary}")
+        // Only the verdict starts settlement, in this same transaction.
+        settlement.plan(contract.id)
         return true
     }
 

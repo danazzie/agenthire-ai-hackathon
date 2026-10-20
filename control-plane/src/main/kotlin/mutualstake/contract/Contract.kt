@@ -25,6 +25,11 @@ data class Contract(
     val version: Int,
     val createdAt: Instant,
     val updatedAt: Instant,
+    /** When the verdict's settlement was queued; null while it waits (e.g. for US-16's human Confirm). */
+    val settlementPlannedAt: Instant? = null,
+    val settlementConfirmedAt: Instant? = null,
+    val needsAttention: Boolean = false,
+    val attentionReason: String? = null,
 )
 
 /**

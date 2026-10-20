@@ -11,11 +11,43 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseEntity
 import org.springframework.jdbc.core.simple.JdbcClient
+import org.springframework.stereotype.Component
 import org.springframework.stereotype.Repository
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RestController
+
+/**
+ * Turns a verified webhook into a read of the same object from PayPal. Holds are found by ids already
+ * stored: the order id for approvals, the authorization id for captures (a capture event can arrive before
+ * the capture id is recorded), and the sender_batch_id for payouts.
+ */
+@Component
+class WebhookPrompter(private val holds: HoldRepository, private val outbox: OutboxRepository) {
+    fun prompt(type: String, resource: JsonNode) {
+        val related = resource.path("supplementary_data").path("related_ids")
+        when {
+            type == "CHECKOUT.ORDER.APPROVED" ->
+                holds.byOrderId(resource.path("id").asText())?.let { outbox.enqueue(it.id, OutboxType.CHECK_ORDER) }
+            type == "PAYMENT.AUTHORIZATION.CREATED" ->
+                holds.byOrderId(related.path("order_id").asText())?.let { outbox.enqueue(it.id, OutboxType.CHECK_ORDER) }
+            type == "PAYMENT.AUTHORIZATION.VOIDED" ->
+                holds.byAuthorizationId(resource.path("id").asText())?.takeIf { it.state == HoldState.VOID_REQUESTED }
+                    ?.let { outbox.enqueue(it.id, OutboxType.VOID) }
+            type.startsWith("PAYMENT.CAPTURE.") ->
+                holds.byAuthorizationId(related.path("authorization_id").asText())?.takeIf { it.state == HoldState.CAPTURE_REQUESTED }
+                    ?.let { outbox.enqueue(it.id, if (it.captureId == null) OutboxType.CAPTURE else OutboxType.CHECK_CAPTURE) }
+            type.startsWith("PAYMENT.PAYOUTSBATCH.") || type.startsWith("PAYMENT.PAYOUTS-ITEM.") -> {
+                val senderBatchId = resource.path("batch_header").path("sender_batch_header").path("sender_batch_id").asText(null)
+                    ?: resource.path("payout_item").path("sender_item_id").asText(null)?.removeSuffix("-1")
+                val batchId = resource.path("batch_header").path("payout_batch_id").asText(null) ?: resource.path("payout_batch_id").asText(null)
+                val hold = senderBatchId?.let(holds::bySenderBatchId) ?: batchId?.let(holds::byPayoutBatchId)
+                hold?.takeIf { it.state == HoldState.PAYOUT_REQUESTED }?.let { outbox.enqueue(it.id, if (it.payoutBatchId == null) OutboxType.PAYOUT else OutboxType.CHECK_PAYOUT) }
+            }
+        }
+    }
+}
 
 @Repository
 class WebhookEventStore(private val jdbc: JdbcClient) {
@@ -48,8 +80,7 @@ class PayPalWebhookController(
     private val paypal: PayPalGateway,
     private val props: MutualStakeProperties,
     private val store: WebhookEventStore,
-    private val holds: HoldRepository,
-    private val outbox: OutboxRepository,
+    private val prompter: WebhookPrompter,
     private val mapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -79,18 +110,7 @@ class PayPalWebhookController(
     }
 
     private fun prompt(type: String, resource: JsonNode) {
-        when (type) {
-            "CHECKOUT.ORDER.APPROVED" ->
-                holds.byOrderId(resource.path("id").asText())?.let { outbox.enqueue(it.id, OutboxType.CHECK_ORDER) }
-            "PAYMENT.AUTHORIZATION.CREATED" ->
-                holds.byOrderId(resource.path("supplementary_data").path("related_ids").path("order_id").asText())
-                    ?.let { outbox.enqueue(it.id, OutboxType.CHECK_ORDER) }
-            "PAYMENT.AUTHORIZATION.VOIDED" ->
-                holds.byAuthorizationId(resource.path("id").asText())
-                    ?.takeIf { it.state == HoldState.VOID_REQUESTED }
-                    ?.let { outbox.enqueue(it.id, OutboxType.VOID) }
-            else -> Unit
-        }
+        prompter.prompt(type, resource)
     }
 
     private fun JsonNode.textOrNull(): String? = if (isMissingNode || isNull) null else asText()

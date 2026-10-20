@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.jdbc.core.simple.JdbcClient
 import java.util.UUID
 
@@ -18,7 +19,10 @@ class SchemaInvariantsTest @Autowired constructor(private val jdbc: JdbcClient) 
     fun `flyway applied every migration`() {
         val applied = jdbc.sql("select version from flyway_schema_history where success order by installed_rank")
             .query(String::class.java).list()
-        assertEquals(listOf("1", "2", "3"), applied)
+        val shipped = PathMatchingResourcePatternResolver().getResources("classpath:db/migration/V*__*.sql")
+            .map { it.filename!!.removePrefix("V").substringBefore("__") }.sortedBy { it.toInt() }
+        assertEquals(shipped, applied)
+        assertTrue(shipped.size >= 4)
     }
 
     // Verifier (US-18) ------------------------------------------------------------------

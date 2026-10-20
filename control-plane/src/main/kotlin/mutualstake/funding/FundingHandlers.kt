@@ -10,6 +10,7 @@ import mutualstake.outbox.OutboxType
 import mutualstake.paypal.CreateOrderRequest
 import mutualstake.paypal.PayPalException
 import mutualstake.paypal.PayPalGateway
+import mutualstake.settlement.SettlementService
 import org.springframework.stereotype.Component
 
 /** Creates the AUTHORIZE order for a hold, the verifier hash already on it as custom_id (US-18). */
@@ -85,7 +86,12 @@ class AuthorizeHandler(private val holds: HoldRepository, private val paypal: Pa
 
 /** Releases a hold. Void is not a refund: nothing was taken. */
 @Component
-class VoidHandler(private val holds: HoldRepository, private val paypal: PayPalGateway, private val funding: FundingService) : OutboxHandler {
+class VoidHandler(
+    private val holds: HoldRepository,
+    private val paypal: PayPalGateway,
+    private val funding: FundingService,
+    private val settlement: SettlementService,
+) : OutboxHandler {
     override val type = OutboxType.VOID
 
     override fun handle(event: OutboxEvent) {
@@ -99,7 +105,7 @@ class VoidHandler(private val holds: HoldRepository, private val paypal: PayPalG
             paypal.getAuthorization(authorizationId, hold.id)
         }
         check(authorization.status == "VOIDED") { "void of $authorizationId left it ${authorization.status}" }
-        funding.recordVoided(hold.id, authorization)
+        settlement.recordVoided(hold.id, authorization)
     }
 
     override fun onDead(event: OutboxEvent, reason: String) = funding.flag(event.aggregateId, reason)

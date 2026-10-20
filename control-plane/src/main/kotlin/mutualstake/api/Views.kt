@@ -18,6 +18,8 @@ import mutualstake.ledger.LedgerRepository
 import mutualstake.party.Party
 import mutualstake.party.PartyRepository
 import mutualstake.session.Session
+import mutualstake.session.SessionRepository
+import mutualstake.settlement.SettlementService
 import mutualstake.verifier.CheckResult
 import mutualstake.verifier.DryRun
 import mutualstake.verifier.RunOutcome
@@ -130,6 +132,12 @@ data class ContractView(
     val transitions: List<TransitionView>,
     val ledger: List<LedgerView>,
     val delivery: DeliveryView?,
+    /** US-16: the verdict is in, and this session's first capture waits for a human to confirm it. */
+    val awaitingConfirmation: Boolean,
+    val settlementPlannedAt: Instant?,
+    val settlementConfirmedAt: Instant?,
+    val needsAttention: Boolean,
+    val attentionReason: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -145,6 +153,7 @@ class ContractViews(
     private val deliveries: DeliveryRepository,
     private val blobs: BlobStore,
     private val runs: VerifierRunLog,
+    private val sessions: SessionRepository,
 ) {
     fun delivery(contractId: UUID): DeliveryView? {
         val d = deliveries.forContract(contractId) ?: return null
@@ -196,6 +205,12 @@ class ContractViews(
             transitions = contracts.transitions(contract.id).map { TransitionView(it.from.name, it.to.name, it.cause, it.occurredAt) },
             ledger = ledger.forContract(contract.id).map { LedgerView(it.event.name, it.direction.name, it.amount.minor, it.counterparty, it.paypalRef, it.occurredAt) },
             delivery = delivery(contract.id),
+            awaitingConfirmation = contract.state in SettlementService.SETTLING && contract.settlementPlannedAt == null &&
+                sessions.lockFree(contract.sessionId).firstCaptureConfirmedAt == null,
+            settlementPlannedAt = contract.settlementPlannedAt,
+            settlementConfirmedAt = contract.settlementConfirmedAt,
+            needsAttention = contract.needsAttention,
+            attentionReason = contract.attentionReason,
             createdAt = contract.createdAt,
             updatedAt = contract.updatedAt,
         )

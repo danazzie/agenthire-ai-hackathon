@@ -87,6 +87,36 @@ class PayPalRestGateway(
         return if (node.has("status")) authorization(node) else getAuthorization(authorizationId, holdId)
     }
 
+    override fun captureAuthorization(authorizationId: String, requestId: String, holdId: UUID): PayPalCapture =
+        capture(call("capture_authorization", HttpMethod.POST, "/v2/payments/authorizations/$authorizationId/capture", holdId, requestId, mapOf("final_capture" to true)))
+
+    override fun getCapture(captureId: String, holdId: UUID?): PayPalCapture =
+        capture(call("get_capture", HttpMethod.GET, "/v2/payments/captures/$captureId", holdId, null, null))
+
+    override fun createPayout(request: PayoutRequest): PayPalPayoutBatch {
+        val body = mapOf(
+            "sender_batch_header" to mapOf(
+                "sender_batch_id" to request.senderBatchId,
+                "email_subject" to request.subject,
+                "email_message" to request.message,
+            ),
+            // Payouts v1 says amount.currency, not currency_code (seen in the US-4 spike).
+            "items" to listOf(
+                mapOf(
+                    "recipient_type" to "EMAIL",
+                    "receiver" to request.receiverEmail,
+                    "amount" to mapOf("value" to request.amount.toPayPal(), "currency" to CURRENCY),
+                    "sender_item_id" to "${request.senderBatchId}-1",
+                    "note" to request.note,
+                ),
+            ),
+        )
+        return batch(call("create_payout", HttpMethod.POST, "/v1/payments/payouts", request.holdId, request.requestId, body))
+    }
+
+    override fun getPayoutBatch(batchId: String, holdId: UUID?): PayPalPayoutBatch =
+        batch(call("get_payout_batch", HttpMethod.GET, "/v1/payments/payouts/$batchId", holdId, null, null))
+
     override fun verifyWebhook(headers: Map<String, String>, rawBody: String): Boolean {
         val h = headers.mapKeys { it.key.lowercase() }
         fun q(value: String?) = mapper.writeValueAsString(value)
@@ -145,11 +175,13 @@ class PayPalRestGateway(
         val node = if (text.isBlank()) mapper.createObjectNode() else mapper.readTree(text)
         val name = node.path("name").textOrNull() ?: node.path("error").textOrNull()
         val issue = node.path("details").path(0).path("issue").textOrNull()
+        val field = node.path("details").path(0).path("field").textOrNull()
+        val links = node.path("details").flatMap { d -> d.path("link").map { it.path("href").asText() } }
         val failed = status >= 400
         calls.record(holdId, PayPalCall(operation, method.name(), path, requestId, status, debugId, if (failed) name else null, if (failed) issue else null, elapsed()))
         if (failed) {
             log.warn("PayPal {} {} {} -> {} {} {} debug_id={}", operation, method, path, status, name, issue, debugId)
-            throw PayPalException(operation, status, name, issue, debugId, node.path("message").textOrNull() ?: node.path("error_description").textOrNull())
+            throw PayPalException(operation, status, name, issue, debugId, node.path("message").textOrNull() ?: node.path("error_description").textOrNull(), field, links)
         }
         return node
     }
@@ -157,6 +189,7 @@ class PayPalRestGateway(
     private fun order(node: JsonNode): PayPalOrder {
         val unit = node.path("purchase_units").path(0)
         val auth = unit.path("payments").path("authorizations").path(0)
+        val capture = unit.path("payments").path("captures").path(0)
         return PayPalOrder(
             id = node.path("id").asText(),
             status = node.path("status").asText(),
@@ -165,6 +198,37 @@ class PayPalRestGateway(
                 ?: node.path("payer").path("email_address").textOrNull(),
             approveUrl = node.path("links").firstOrNull { it.path("rel").asText() in APPROVE_RELS }?.path("href")?.asText(),
             authorization = if (auth.isMissingNode) null else authorization(auth),
+            capture = if (capture.isMissingNode) null else capture(capture),
+        )
+    }
+
+    private fun capture(node: JsonNode) = PayPalCapture(
+        id = node.path("id").asText(),
+        status = node.path("status").asText(),
+        amount = node.path("amount").path("value").textOrNull()?.let(Money::parsePayPal),
+        paypalFee = node.path("seller_receivable_breakdown").path("paypal_fee").path("value").textOrNull()?.let(Money::parsePayPal),
+        customId = node.path("custom_id").textOrNull(),
+        statusReason = node.path("status_details").path("reason").textOrNull(),
+        createdAt = node.path("create_time").textOrNull()?.let(Instant::parse),
+        authorizationId = node.path("supplementary_data").path("related_ids").path("authorization_id").textOrNull(),
+    )
+
+    private fun batch(node: JsonNode): PayPalPayoutBatch {
+        val header = node.path("batch_header")
+        return PayPalPayoutBatch(
+            batchId = header.path("payout_batch_id").asText(),
+            status = header.path("batch_status").asText(),
+            senderBatchId = header.path("sender_batch_header").path("sender_batch_id").textOrNull(),
+            items = node.path("items").map { item ->
+                PayPalPayoutItem(
+                    payoutItemId = item.path("payout_item_id").asText(),
+                    transactionId = item.path("transaction_id").textOrNull(),
+                    status = item.path("transaction_status").asText(),
+                    amount = item.path("payout_item").path("amount").path("value").textOrNull()?.let(Money::parsePayPal),
+                    fee = item.path("payout_item_fee").path("value").textOrNull()?.let(Money::parsePayPal),
+                    processedAt = item.path("time_processed").textOrNull()?.let(Instant::parse),
+                )
+            },
         )
     }
 

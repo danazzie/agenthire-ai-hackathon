@@ -5,6 +5,7 @@ import mutualstake.contract.ContractRepository
 import mutualstake.hold.HoldRepository
 import mutualstake.outbox.OutboxRepository
 import mutualstake.outbox.OutboxType
+import mutualstake.settlement.SettlementService
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -16,6 +17,7 @@ class Sweeper(
     private val contracts: ContractRepository,
     private val holds: HoldRepository,
     private val funding: FundingService,
+    private val settlement: SettlementService,
     private val outbox: OutboxRepository,
     private val props: MutualStakeProperties,
     private val clock: Clock,
@@ -28,6 +30,8 @@ class Sweeper(
         for (id in contracts.termsLockedPastDeadline(now)) safely("cancel $id") { funding.cancel(id, "deadline passed before both holds were placed") }
         for (id in contracts.heldPastDeadlineWithoutDelivery(now)) safely("expire $id") { funding.expire(id) }
         for (id in contracts.termsLockedWithBothHeld()) safely("repair $id") { funding.repairBothHeld(id) }
+        for (id in contracts.awaitingSettlementPlan()) safely("plan $id") { settlement.planIfReady(id) }
+        for (id in contracts.settlingWithFinalHolds()) safely("settle $id") { settlement.repairSettled(id) }
         // With webhooks configured the poll is only a backstop, so it starts at the middle tier.
         val first = if (props.paypal.webhooksConfigured) maxOf(15L, props.scheduling.orderPollSeconds) else props.scheduling.orderPollSeconds
         for (id in holds.awaitingApproval(now, first)) outbox.enqueue(id, OutboxType.CHECK_ORDER)
