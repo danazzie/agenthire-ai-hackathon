@@ -4,7 +4,9 @@ PayPal AI Hackathon · working title **Mutual Stake** (built on the AgentHire ide
 
 **One-liner:** Both sides put money on PayPal; the clock and the proof decide who gets paid.
 
-**Product, one paragraph:** Two sides agree a job, a price, a deadline and a plain-English test. The buyer's fee *and* the seller's bond are both held on PayPal (`Orders v2`, `intent: AUTHORIZE`); nothing is charged yet. Agents compile the test into a verifier and pin its hash on both PayPal orders (`custom_id`). When the deliverable arrives — a file from another agent, or a person holding proof up to a camera — the verifier decides: **PASS** ? capture the fee to the seller and void the bond; **FAIL** or no-show ? void the buyer's fee and capture the bond as compensation (Payouts v1 to the buyer). If either side disagrees, the verifier log goes into the PayPal Disputes API. Money never moves on an opinion.
+**Product, one paragraph:** Two **agents** agree a job, a price, a deadline and a plain-English test. The buyer's fee *and* the seller's bond are both held on PayPal (`Orders v2`, `intent: AUTHORIZE`); nothing is charged yet. Agents compile the test into a verifier and pin its hash on both PayPal orders (`custom_id`). When the deliverable arrives (text or a file from the seller agent), the verifier decides: **PASS** ? capture the fee to the seller and void the bond; **FAIL** or no-show ? void the buyer's fee and capture the bond as compensation (Payouts v1 to the buyer). If either side disagrees, the verifier log goes into the PayPal Disputes API. Money never moves on an opinion.
+
+v1 does **not** include hiring a human on camera. That remains a post-hackathon skin on the same rails (Epic 3).
 
 Stories marked **v1** are required for the 12 Nov 2026 demo. Everything else is backlog / pitch.
 
@@ -18,7 +20,7 @@ A **seller bond** is a small refundable hold the worker posts (default ? 25% of 
 |---|---|---|
 | Client / buyer agent | Person or company agent paying for work | Pay only if the test passes; get compensated if the worker ghosts |
 | Seller agent | Another AI doing the work | Know the test up front; get paid the moment it passes |
-| Human worker | Person hired by an agent for a short camera/file task | Earn a small amount without a gig app; not argue with a stranger |
+| Human worker | Person hired by an agent (backlog, not v1) | Same rails later; camera proof |
 | Operator | Team running the prototype | No double-pay, no silent captures, honest sandbox money |
 | Judge | Hackathon reviewer | Understand the muted video; open sandbox and find the order ids |
 
@@ -32,7 +34,7 @@ As a client, I want to describe a job, a max price, a deadline and how "done" wi
 
 **Acceptance**
 
-- Given `"50-word coffee-shop blurb, max $2, by 18:00, no lorem ipsum"`, the agent produces: price cap, deadline, seller type, and a draft verifier (`words == 50 AND language == en AND not placeholder(text)`).
+- Given `"50-word coffee-shop blurb, max $2, by 18:00, no lorem ipsum"`, the agent produces: price cap, deadline, seller = agent, and a draft verifier (`words == 50 AND language == en AND not placeholder(text)`).
 - The client sees and **confirms the verifier** before any PayPal call.
 - Invalid amounts, missing deadline, or an uncompilable test are rejected with a one-line reason.
 
@@ -158,14 +160,16 @@ As a seller agent, I want a one-sentence reason on FAIL, so that I know what to 
 
 **Acceptance**
 
-- Reason cites the failing check (`12 words`, `placeholder detected`, `no #1042 in frame`).
+- Reason cites the failing check (`12 words`, `placeholder detected`).
 - Deliverable text is never executed as instructions.
 
 ---
 
-## Epic 3 — Human worker (agent hires a person)
+## Epic 3 — Human worker (backlog — not v1)
 
-### US-12 · Take a camera task — v1
+Same PayPal rails as agent?agent. Dropped from the 12 Nov demo to cut vision, privacy, and a second seller UX. Keep for the pitch slide “what’s next”: an agent can hire a person when the job needs hands.
+
+### US-12 · Take a camera task
 
 As a person with a phone, I want to accept a short task from an agent (e.g. "show the red binder with sticker #1042 in frame within 10 minutes"), so that I can earn small amounts without a gig app.
 
@@ -174,7 +178,7 @@ As a person with a phone, I want to accept a short task from an agent (e.g. "sho
 - Task shows amount, deadline, and the exact proof in one line.
 - Payment destination is my PayPal email / sandbox personal account.
 
-### US-13 · Prove it on camera, get paid — v1
+### US-13 · Prove it on camera, get paid
 
 As a human worker, I want to upload a photo or clip and be paid when it passes, so that I do not argue with a stranger.
 
@@ -191,7 +195,7 @@ As a human worker, I want to be paid per minute actually on camera up to a cap, 
 **Acceptance**
 
 - Buyer authorizes a cap; capture = rate × verified minutes; rest voided (`final_capture: true`).
-- Demo beat C in the prototype.
+- Not in the 12 Nov video. Same capture math as US-5.
 
 ### US-15 · Bond waived for first job
 
@@ -202,7 +206,7 @@ As a new human worker, I want my first bond waived or capped at $1, so that I ca
 - First completed job: bond $0 or $1.
 - After one PASS, default 25% applies. User-study kill signal for RQ2.
 
-### US-27 · Refuse camera work — v1
+### US-27 · Refuse camera work
 
 As a human worker, I want to decline a camera task without penalty, so that I am never forced on video.
 
@@ -344,8 +348,7 @@ As a judge, I want one fail and one pass in the same video, so that Mutual Stake
 | Beat | Stories | On screen |
 |---|---|---|
 | 1. Agent ? agent, junk blurb | US-1, 2, 7, 8, 9, 3, 4, 18, 21, 26 | Bond **Compensation**, fee **Released** |
-| 2. Agent ? human, red binder | US-12, 13, 10, 16, 21, 22 | Fee **Paid**, bond **Released** |
-| 3. Optional timed | US-14, 5 | Partial capture + remainder released |
+| 2. Same job, real 50-word blurb | US-10, 16, 21, 22 | Fee **Paid**, bond **Released** |
 
 ---
 
@@ -360,6 +363,7 @@ As a judge, I want one fail and one pass in the same video, so that Mutual Stake
 | US-38 | Netting several jobs at 18:00 into one capture | Confusing in a 90s video |
 | US-39 | Live grocery / Instacart-style restock | Wrong cluster; PayPal not the grocer rail |
 | US-40 | Charity / GoFundMe skin | Thin unless hold-until-proof is the product, which it already is |
+| US-12–15, 27–28 | Agent hires a human (camera / timed) | Vision, privacy, second UX; strong later, not 12 Nov |
 
 ---
 
@@ -393,7 +397,7 @@ Sandbox notes from sibling submissions: India-registered sandbox accounts can fa
 
 ## User-study link
 
-Paper prototypes and the survey script: [PROTOTYPES.md](PROTOTYPES.md) (scenarios A / B / C, bond on/off, pass/fail, RQ1–RQ5).
+Paper prototypes and the survey script: [PROTOTYPES.md](PROTOTYPES.md) (v1 = scenario A only; B/C optional later).
 
 Internal click-through also exists as Cursor canvases for team sessions.
 
@@ -416,10 +420,10 @@ If RQ1 (muted comprehension) fails, redesign the jars before more API work. If R
 | US-9 | yes | Seller agent | Know the test before I work |
 | US-10 | yes | Seller agent | Get paid on pass |
 | US-11 | | Seller agent | Resubmit once |
-| US-12 | yes | Human | Take a camera task |
-| US-13 | yes | Human | Prove it on camera, get paid |
-| US-14 | | Human | Timed work, paid per minute |
-| US-15 | | Human | Bond waived for first job |
+| US-12 | | Human | Take a camera task (backlog) |
+| US-13 | | Human | Prove it on camera, get paid (backlog) |
+| US-14 | | Human | Timed work, paid per minute (backlog) |
+| US-15 | | Seller | Bond waived for first job |
 | US-16 | yes | Operator | Human confirms the first capture |
 | US-17 | yes | Operator | Idempotent money moves |
 | US-18 | yes | Operator | Verifier is tamper-evident |
@@ -431,11 +435,11 @@ If RQ1 (muted comprehension) fails, redesign the jars before more API work. If R
 | US-24 | yes | Client | See both jars at all times |
 | US-25 | yes | Client | Cap what my agent can spend |
 | US-26 | yes | Seller | See why I failed |
-| US-27 | yes | Human | Refuse camera work |
+| US-27 | | Human | Refuse camera work (backlog) |
 | US-28 | | Human | Privacy of the proof |
 | US-29 | yes | Operator | Two sandbox identities |
 | US-30 | yes | Operator | Webhooks confirm settlement |
 | US-31 | yes | Operator | Reset demo |
 | US-32 | yes | Operator | Honest failure |
 | US-33 | yes | Judge | Two demo beats |
-| US-34–40 | | — | Backlog |
+| US-34–40 | | — | Backlog (includes agent-hires-human) |

@@ -15,7 +15,7 @@ Open this file (or a Figma copy of the screens). 20–25 minutes.
 1. **Muted walkthrough.** Scenario A, good proof, bond ON. Walk the seven steps without talking. Ask: “What happened to the money?”
 2. **Fail branch.** Same scenario, junk delivery, step 6. Ask: “Who got what?”
 3. **Toggle.** Repeat step 6 with bond OFF. Ask: “What changed? Would a bond have mattered?”
-4. **Role task.** Clients invent a real job. Freelancers: would you post $0.40 on a $1.50 job? Gig: would you do scenario B for $8?
+4. **Role task.** Clients invent a real job they would post to another agent. Freelancers: would you post a $0.40 bond on a $1.50 job? What % is too much?
 5. **Verifier.** Show the compiled test at step 1 and the verdict at step 5. “Who decided?”
 6. **Survey.** Copy answers into the team log (template at the end).
 
@@ -27,7 +27,7 @@ Open this file (or a Figma copy of the screens). 20–25 minutes.
 
 | Control | Values |
 |---|---|
-| Scenario | A agent?agent · B agent?human · C timed human |
+| Scenario | **A agent?agent (v1)** · B/C later (appendix) |
 | Bond | ON = Mutual Stake · OFF = buyer-only hold (what ~30 other hackathon teams ship) |
 | Delivery | Good proof · Junk / no-show |
 | Step | 1 Post job ? 2 Negotiate ? 3 Fund ? 4 Deliver ? 5 Verdict ? 6 Settle ? 7 Appeal |
@@ -83,7 +83,9 @@ Jar states: **Empty** · **Held** · **Paid** · **Released** · **Compensation**
 
 ---
 
-## Scenario B — Agent hires a human (v1 demo beat 2)
+## Scenario B — Agent hires a human (not v1)
+
+Dropped from the 12 Nov demo. Same rails; keep for a “what’s next” slide or a later interview if you have extra time.
 
 | | |
 |---|---|
@@ -111,11 +113,11 @@ Jar states: **Empty** · **Held** · **Paid** · **Released** · **Compensation**
 - Pass: Capture $8 to Dana. Void $2 bond.
 - Fail: Void $8. Capture $2, pay Office agent.
 
-Use this for **RQ5** (is “a bot hired me for a photo” acceptable or creepy?).
+Do not use in the required study. Optional probe only if a participant raises “what if the worker is a person?”
 
 ---
 
-## Scenario C — Timed human (optional week-two)
+## Scenario C — Timed work (not v1)
 
 | | |
 |---|---|
@@ -198,7 +200,7 @@ Bond OFF: seller jar stays Empty. Fail path has no Compensation — that is the st
 | In this paper proto | In the 12 Nov build |
 |---|---|
 | Placeholder order ids `9AB4K…SAND` | Real sandbox order ids |
-| Toggle Good / Junk | Actual file or photo |
+| Toggle Good / Junk | Actual text or file from the seller agent |
 | Hash shown as `7f3a…c9e1` | SHA-256 of verifier source on both `custom_id`s |
 | Dispute button | Disputes API v1 `provide-evidence` (or honest “simulated dispute, real client”) |
 | Bond ON/OFF | ON for the video; OFF only as interview variant |
@@ -217,15 +219,14 @@ Do not film a CSS “Paid” badge. US-32 in the stories file.
 | RQ2 | Will sellers post a bond? | ? 3.5 / 5 for “I would post ? 25%” | < 2.5 ? optional bond / first-job waiver (US-15) |
 | RQ3 | Do buyers want no-show compensation? | ? 65% prefer Mutual Stake over buyer-only | < 50% ? bond is not the headline |
 | RQ4 | Trust compiled test more than a person/AI opinion? | ? 4 / 5 when test is shown before funding | < 3 ? show verifier earlier or keep human Confirm |
-| RQ5 | Agent-hires-human on camera: ok or creepy? | ? 70% of gig participants would take B at $8 | < 40% ? drop humans from v1 video |
+| RQ5 | (optional, not v1) Would you ever let an agent hire a person? | Parking lot | Do not block 12 Nov |
 
-### Recruit (12–15)
+### Recruit (8–12)
 
-- 5 clients (paid a freelancer in 12 months; been ghosted or got junk)
-- 5 freelancers (chased an unpaid invoice)
-- 4 gig / students (would do a 10-minute phone task; has PayPal or similar)
+- 4–6 clients (paid a freelancer in 12 months; been ghosted or got junk)
+- 4–6 freelancers (chased an unpaid invoice)
 
-Screener: role, last paid work, platform, PayPal yes/no, camera comfort 1–5. Exclude teammates.
+Screener: role, last paid work, platform, PayPal yes/no. Exclude teammates.
 
 ### Session clock
 
@@ -234,7 +235,7 @@ Screener: role, last paid work, platform, PayPal yes/no, camera comfort 1–5. Exc
 | 0–2 | Last time you paid or got paid for a one-off. What broke? |
 | 2–5 | Muted scenario A, good proof, bond ON. “Tell me what happened to the money.” |
 | 5–9 | Junk ? Settle. Bond OFF. What changed? |
-| 9–13 | Role task (client job / bond % / would you do B?). |
+| 9–13 | Role task (client job / bond %). |
 | 13–17 | Verifier + Appeal. Who decided? |
 | 17–20 | Survey |
 | 20–23 | If this existed tomorrow, first use? What would stop you? |
@@ -242,7 +243,7 @@ Screener: role, last paid work, platform, PayPal yes/no, camera comfort 1–5. Exc
 ### Survey (copy per participant)
 
 ```
-Code: P__     Persona: client / freelancer / gig     Scenario: A / B / C
+Code: P__     Persona: client / freelancer     Scenario: A
 
 RQ1  I understood the money with no explanation          1  2  3  4  5
 RQ4  I trust the shown test to decide, not a person      1  2  3  4  5
@@ -258,12 +259,12 @@ Quotes / first use case / blocker:
 
 ### Decision after 12 sessions
 
-- RQ1 ? 80% and RQ3 ? 65% ? build Mutual Stake as specified.
-- RQ1 passes, RQ2 fails ? bond optional; lead with agent-hires-human.
-- RQ1 fails ? fix the jars and step labels before more PayPal work.
+- RQ1 at least 80% and RQ3 at least 65%: build Mutual Stake, agent to agent.
+- RQ1 passes, RQ2 fails: bond optional or first-job waiver (US-15).
+- RQ1 fails: fix the jars and step labels before more PayPal work.
 
 ---
 
 ## Figma notes (if you port this)
 
-Seven frames per scenario is 21 frames; cheaper: **one** 7-frame flow (A) plus two overlay boards for B and C copy. Components: `Jar` (5 variants = states), `StepPills`, `PassFailToggle`, `BondToggle`. Prototype links: Next/Back on every frame; overlay for fail proof on frame 4.
+Build **one** 7-frame flow for scenario A only. Components: `Jar` (5 variants = states), `StepPills`, `PassFailToggle`, `BondToggle`. Prototype links: Next/Back on every frame; overlay for fail proof on frame 4.
