@@ -11,10 +11,11 @@ This is a prototype for the sandbox. It is a PayPal authorization hold (up to ~2
 ## Docs
 
 - [User stories](USER_STORIES.md) — v1 for the 12 Nov 2026 demo, plus backlog
+- [Paper prototypes](PROTOTYPES.md) — three scenarios, seven screens, user-study script
 
 ## Status
 
-User stories are in the repo. App, sandbox integration, and hosted demo will follow.
+Stories and paper prototypes are in the repo. App, sandbox integration, and hosted demo will follow.
 
 ## License
 

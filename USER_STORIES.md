@@ -393,10 +393,9 @@ Sandbox notes from sibling submissions: India-registered sandbox accounts can fa
 
 ## User-study link
 
-Prototype and survey kit live as Cursor canvases for internal sessions:
+Paper prototypes and the survey script: [PROTOTYPES.md](PROTOTYPES.md) (scenarios A / B / C, bond on/off, pass/fail, RQ1–RQ5).
 
-- Click-through: Mutual Stake prototype (scenarios A / B / C, bond on/off, pass/fail)
-- Study kit: RQ1–RQ5, 23-minute script, response logger
+Internal click-through also exists as Cursor canvases for team sessions.
 
 If RQ1 (muted comprehension) fails, redesign the jars before more API work. If RQ2 (sellers posting a bond) fails, ship US-15 (first-job waiver) and make the bond optional.
 
