@@ -8,6 +8,12 @@ The buyer's fee and the seller's bond are **authorized, not captured**. A compil
 
 This is a prototype for the sandbox. It is a PayPal authorization hold (up to ~29 days), not legal escrow.
 
+## Pitch
+
+Both sides put money on PayPal. The test, not a mood, decides who gets paid.
+
+Full spoken, video, and Devpost copy: [PITCH.md](PITCH.md)
+
 ## Docs
 
 - [User stories](USER_STORIES.md) — v1 for the 12 Nov 2026 demo, plus backlog
