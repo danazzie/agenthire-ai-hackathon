@@ -36,6 +36,17 @@ dependencies {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    // Real-sandbox tests only run when asked for: ./gradlew :control-plane:sandboxTest
+    useJUnitPlatform { excludeTags("sandbox") }
     testLogging { events("passed", "skipped", "failed"); exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+}
+
+val sandboxTest by tasks.registering(Test::class) {
+    description = "Runs the opt-in tests against the real PayPal sandbox, using the repo-root .env."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("sandbox") }
+    outputs.upToDateWhen { false }
+    testLogging { events("passed", "skipped", "failed"); showStandardStreams = true }
 }

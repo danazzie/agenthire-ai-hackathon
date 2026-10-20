@@ -32,21 +32,30 @@ class Fixtures(private val jdbc: JdbcClient) {
         return id to sha
     }
 
+    /** An archived session of its own, so raw fixtures never count against a live session's mandate. */
+    fun archivedSession(): UUID {
+        val id = UUID.randomUUID()
+        jdbc.sql("insert into session (id, cap_minor, max_jobs, archived_at) values (:id, 3000, 2, now())").param("id", id).update()
+        return id
+    }
+
     fun lockedContract(feeMinor: Long = 150, bondMinor: Long = 40): Locked {
+        val session = archivedSession()
         val buyer = party("buyer")
         val seller = party("seller")
         val (verifierId, sha) = verifier()
         val id = UUID.randomUUID()
         jdbc.sql(
             """
-            insert into contract (id, buyer_id, seller_id, seller_type, job_text, fee_cap_minor, fee_minor, bond_minor,
-                                  deadline_at, verifier_id, terms_hash, state)
-            values (:id, :buyer, :seller, 'AGENT', '50-word coffee-shop blurb', 200, :fee, :bond,
-                    :deadline, :verifier, :terms, 'TERMS_LOCKED')
+            insert into contract (id, session_id, buyer_id, seller_id, seller_type, job_text, fee_cap_minor, fee_minor,
+                                  bond_minor, deadline_at, verifier_id, terms_hash, state)
+            values (:id, :session, :buyer, :seller, 'AGENT', '50-word coffee-shop blurb', 200, :fee,
+                    :bond, :deadline, :verifier, :terms, 'TERMS_LOCKED')
             """,
         )
-            .param("id", id).param("buyer", buyer).param("seller", seller).param("fee", feeMinor).param("bond", bondMinor)
-            .param("deadline", Instant.now().plus(1, ChronoUnit.HOURS).toTimestamptz())
+            .param("id", id).param("session", session).param("buyer", buyer).param("seller", seller)
+            .param("fee", feeMinor).param("bond", bondMinor)
+            .param("deadline", Instant.now().plus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS).toTimestamptz())
             .param("verifier", verifierId).param("terms", sha256Hex("terms $id"))
             .update()
         return Locked(id, buyer, seller, sha, feeMinor, bondMinor)

@@ -1,6 +1,9 @@
 spring:
   application:
     name: mutual-stake
+  config:
+    # Local runs read the repo-root .env (gitignored); deployed runs get real environment variables.
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mutualstake}
     username: ${DB_USER:mutualstake}
@@ -11,3 +14,21 @@ spring:
 server:
   # Render injects PORT. Locally 8088, because 8080 is commonly taken.
   port: ${PORT:8088}
+
+mutualstake:
+  public-url: ${PUBLIC_URL:http://localhost:8088}
+  web-url: ${WEB_URL:}
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    base-url: ${PAYPAL_BASE_URL:https://api-m.sandbox.paypal.com}
+    webhook-id: ${PAYPAL_WEBHOOK_ID:}
+  parties:
+    buyer:
+      handle: alex
+      display-name: Alex's agent
+      paypal-email: ${PAYPAL_BUYER_EMAIL:}
+    seller:
+      handle: maya
+      display-name: Maya's agent
+      paypal-email: ${PAYPAL_SELLER_EMAIL:}

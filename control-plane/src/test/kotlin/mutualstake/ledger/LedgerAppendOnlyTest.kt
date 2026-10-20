@@ -2,17 +2,15 @@ package mutualstake.ledger
 
 import mutualstake.db.APPEND_ONLY
 import mutualstake.db.Fixtures
-import mutualstake.db.TestPostgres
 import mutualstake.db.assertRejected
 import mutualstake.money.Money
+import mutualstake.support.IntegrationTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
 import java.time.Instant
 import java.util.UUID
@@ -22,8 +20,7 @@ import java.util.UUID
  * statement below is otherwise valid (a no-op UPDATE, a DELETE that matches a row), so the
  * trigger's own SQLSTATE is the only way these tests can pass.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Import(TestPostgres::class)
+@IntegrationTest
 class LedgerAppendOnlyTest @Autowired constructor(
     private val jdbc: JdbcClient,
     private val ledger: LedgerRepository,

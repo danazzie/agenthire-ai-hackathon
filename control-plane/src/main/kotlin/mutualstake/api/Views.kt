@@ -1,0 +1,143 @@
+package mutualstake.api
+
+import mutualstake.contract.Contract
+import mutualstake.contract.ContractRepository
+import mutualstake.contract.OfferKind
+import mutualstake.contract.OfferRepository
+import mutualstake.contract.SellerType
+import mutualstake.contract.TermsDocument
+import mutualstake.hold.Hold
+import mutualstake.hold.HoldRepository
+import mutualstake.hold.HoldSide
+import mutualstake.hold.HoldState
+import mutualstake.ledger.LedgerRepository
+import mutualstake.party.Party
+import mutualstake.party.PartyRepository
+import mutualstake.session.Session
+import mutualstake.verifier.Verifier
+import mutualstake.verifier.VerifierRepository
+import org.springframework.stereotype.Component
+import java.time.Instant
+import java.util.UUID
+
+/**
+ * What a jar shows. Derived here, from PayPal-confirmed hold states only, so no client can show
+ * PAID or COMPENSATION before PayPal reports the payout (US-32).
+ */
+enum class Jar { EMPTY, HELD, RELEASED, CAPTURED, PAID, COMPENSATION }
+
+fun jarOf(hold: Hold): Jar = when (hold.state) {
+    HoldState.PENDING, HoldState.ORDER_CREATED, HoldState.APPROVED, HoldState.ABANDONED -> Jar.EMPTY
+    HoldState.HELD, HoldState.VOID_REQUESTED, HoldState.CAPTURE_REQUESTED -> Jar.HELD
+    HoldState.VOIDED -> Jar.RELEASED
+    HoldState.CAPTURED, HoldState.PAYOUT_REQUESTED -> Jar.CAPTURED
+    HoldState.PAID_OUT -> if (hold.side == HoldSide.BUYER_FEE) Jar.PAID else Jar.COMPENSATION
+}
+
+data class PartyView(val handle: String, val displayName: String) {
+    constructor(party: Party) : this(party.handle, party.displayName)
+}
+
+data class SessionView(val id: UUID, val startedAt: Instant, val capMinor: Long, val maxJobs: Int, val firstCaptureConfirmedAt: Instant?) {
+    constructor(s: Session) : this(s.id, s.startedAt, s.cap.minor, s.maxJobs, s.firstCaptureConfirmedAt)
+}
+
+data class StatusView(val paypalConfigured: Boolean, val webhooksConfigured: Boolean, val parties: List<PartyView>, val session: SessionView)
+
+data class VerifierView(val id: UUID, val sha256: String, val language: String, val source: String, val compiledAt: Instant) {
+    constructor(v: Verifier) : this(v.id, v.sha256, v.language, v.source, v.compiledAt)
+}
+
+data class OfferView(
+    val id: UUID, val party: String, val kind: OfferKind, val feeMinor: Long, val bondMinor: Long,
+    val deadlineAt: Instant, val verifierId: UUID, val note: String?, val createdAt: Instant,
+)
+
+data class HoldView(
+    val id: UUID, val side: HoldSide, val payer: String, val amountMinor: Long, val state: HoldState, val jar: Jar,
+    val customId: String, val paypalOrderId: String?, val approveUrl: String?, val authorizationId: String?,
+    val authorizationExpiresAt: Instant?, val captureId: String?, val capturedMinor: Long?, val payoutBatchId: String?,
+    val payoutItemId: String?, val needsAttention: Boolean, val attentionReason: String?,
+)
+
+data class TransitionView(val from: String, val to: String, val cause: String, val occurredAt: Instant)
+
+data class LedgerView(val event: String, val direction: String, val amountMinor: Long, val counterparty: String, val paypalRef: String, val occurredAt: Instant)
+
+data class ContractView(
+    val id: UUID,
+    val state: String,
+    val sessionId: UUID,
+    val buyer: PartyView,
+    val seller: PartyView,
+    val sellerType: SellerType,
+    val jobText: String,
+    val feeCapMinor: Long,
+    val feeMinor: Long?,
+    val bondMinor: Long?,
+    val currency: String,
+    val deadlineAt: Instant?,
+    val verifier: VerifierView?,
+    val termsHash: String?,
+    /** The exact document terms_hash is the SHA-256 of, so anyone can recompute it. */
+    val termsDocument: String?,
+    val holds: List<HoldView>,
+    val offers: List<OfferView>,
+    val transitions: List<TransitionView>,
+    val ledger: List<LedgerView>,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+@Component
+class ContractViews(
+    private val contracts: ContractRepository,
+    private val holds: HoldRepository,
+    private val offers: OfferRepository,
+    private val parties: PartyRepository,
+    private val verifiers: VerifierRepository,
+    private val ledger: LedgerRepository,
+) {
+    fun of(contract: Contract): ContractView {
+        val buyer = parties.byId(contract.buyerId)
+        val seller = parties.byId(contract.sellerId)
+        val handles = mapOf(buyer.id to buyer.handle, seller.id to seller.handle)
+        val verifier = contract.verifierId?.let(verifiers::byId)
+        val document = if (verifier != null && contract.fee != null && contract.bond != null && contract.deadlineAt != null) {
+            TermsDocument.canonical(contract.id, contract.buyerId, contract.sellerId, contract.fee, contract.bond, contract.deadlineAt, verifier.sha256)
+        } else {
+            null
+        }
+        return ContractView(
+            id = contract.id,
+            state = contract.state.name,
+            sessionId = contract.sessionId,
+            buyer = PartyView(buyer),
+            seller = PartyView(seller),
+            sellerType = contract.sellerType,
+            jobText = contract.jobText,
+            feeCapMinor = contract.feeCap.minor,
+            feeMinor = contract.fee?.minor,
+            bondMinor = contract.bond?.minor,
+            currency = contract.currency,
+            deadlineAt = contract.deadlineAt,
+            verifier = verifier?.let(::VerifierView),
+            termsHash = contract.termsHash,
+            termsDocument = document,
+            holds = holds.forContract(contract.id).map { h ->
+                HoldView(
+                    h.id, h.side, handles.getValue(h.payerId), h.amount.minor, h.state, jarOf(h), h.customId, h.paypalOrderId,
+                    h.approveUrl, h.authorizationId, h.authorizationExpiresAt, h.captureId, h.captured?.minor, h.payoutBatchId,
+                    h.payoutItemId, h.needsAttention, h.attentionReason,
+                )
+            },
+            offers = offers.forContract(contract.id).map { o ->
+                OfferView(o.id, handles.getValue(o.partyId), o.kind, o.terms.fee.minor, o.terms.bond.minor, o.terms.deadlineAt, o.terms.verifierId, o.note, o.createdAt)
+            },
+            transitions = contracts.transitions(contract.id).map { TransitionView(it.from.name, it.to.name, it.cause, it.occurredAt) },
+            ledger = ledger.forContract(contract.id).map { LedgerView(it.event.name, it.direction.name, it.amount.minor, it.counterparty, it.paypalRef, it.occurredAt) },
+            createdAt = contract.createdAt,
+            updatedAt = contract.updatedAt,
+        )
+    }
+}

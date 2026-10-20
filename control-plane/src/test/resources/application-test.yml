@@ -1,0 +1,16 @@
+# Tests drive the outbox poller and the sweeper by hand, use a fake PayPal, and never read real
+# credentials (the main config imports ../.env, so every value that matters is pinned here).
+mutualstake:
+  public-url: http://localhost:8088
+  web-url: ""
+  scheduling:
+    enabled: false
+  paypal:
+    client-id: ""
+    client-secret: ""
+    webhook-id: ""
+  parties:
+    buyer:
+      paypal-email: alex@personal.example.com
+    seller:
+      paypal-email: maya@personal.example.com
