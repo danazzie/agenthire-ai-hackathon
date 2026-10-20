@@ -147,17 +147,26 @@ class HoldRepository(private val jdbc: JdbcClient) {
             .param("reason", reason.take(500)).param("id", id).update()
     }
 
-    /** Unapproved orders whose last PayPal check is older than [checkedBefore]: the polling fallback (US-30). */
-    fun awaitingApproval(checkedBefore: Instant): List<UUID> =
+    /**
+     * Unapproved orders due a fresh read from PayPal: the polling fallback (US-30). The interval grows as
+     * the order waits ([firstSeconds] for two minutes, then 15 s, then 60 s after ten minutes), so a payer
+     * who never approves does not cost a request every few seconds. The return-page nudge is immediate.
+     */
+    fun awaitingApproval(now: Instant, firstSeconds: Long): List<UUID> =
         jdbc.sql(
             """
             select h.id from hold h join contract c on c.id = h.contract_id
             where h.state = 'ORDER_CREATED' and c.state = 'TERMS_LOCKED' and not h.needs_attention
-              and not exists (select 1 from outbox_event e
-                              where e.aggregate_id = h.id and e.type = 'CHECK_ORDER'
-                                and ((e.published_at is null and e.dead_at is null) or e.published_at > :before))
+              and not exists (
+                select 1 from outbox_event e
+                where e.aggregate_id = h.id and e.type = 'CHECK_ORDER'
+                  and ((e.published_at is null and e.dead_at is null)
+                       or e.published_at > :now - case
+                           when :now - h.updated_at < interval '2 minutes' then make_interval(secs => :first)
+                           when :now - h.updated_at < interval '10 minutes' then interval '15 seconds'
+                           else interval '60 seconds' end))
             """,
-        ).param("before", checkedBefore.toTimestamptz()).query(UUID::class.java).list()
+        ).param("now", now.toTimestamptz()).param("first", firstSeconds).query(UUID::class.java).list()
 
     companion object {
         private val WRITABLE = setOf(

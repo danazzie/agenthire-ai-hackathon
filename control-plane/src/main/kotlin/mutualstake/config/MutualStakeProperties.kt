@@ -39,7 +39,7 @@ data class MutualStakeProperties(
         val enabled: Boolean = true,
         val outboxPollMs: Long = 500,
         val sweepMs: Long = 3000,
-        /** How often an unapproved order is re-read from PayPal, the fallback when no webhook arrives. */
+        /** First polling interval for an unapproved order (the fallback when no webhook arrives); it then backs off. */
         val orderPollSeconds: Long = 4,
     )
 }

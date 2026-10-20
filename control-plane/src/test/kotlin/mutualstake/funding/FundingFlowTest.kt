@@ -361,6 +361,38 @@ class FundingFlowTest @Autowired constructor(
     }
 
     @Test
+    fun `approval polling backs off as an order waits`() {
+        val c = lockDeal()
+        poller.drain()
+        val fee = hold(c, BUYER_FEE)
+        fun lastCheckSecondsAgo(seconds: Long) = jdbc.sql(
+            "update outbox_event set published_at = now() - make_interval(secs => :s) where aggregate_id = :h and type = 'CHECK_ORDER'",
+        ).param("s", seconds).param("h", fee.id).update()
+        fun orderAgeMinutes(minutes: Long) =
+            jdbc.sql("update hold set updated_at = now() - :m * interval '1 minute' where id = :h").param("m", minutes).param("h", fee.id).update()
+        fun due() = run { sweeper.sweep(); OutboxType.CHECK_ORDER in outbox.live(fee.id) }
+
+        assertTrue(due(), "never checked: due now")
+        poller.drain()
+        lastCheckSecondsAgo(2)
+        assertFalse(due(), "fresh order, checked 2 s ago")
+        lastCheckSecondsAgo(5)
+        assertTrue(due(), "fresh order, checked 5 s ago")
+        poller.drain()
+        orderAgeMinutes(5)
+        lastCheckSecondsAgo(10)
+        assertFalse(due(), "5-minute-old order, checked 10 s ago")
+        lastCheckSecondsAgo(16)
+        assertTrue(due(), "5-minute-old order, checked 16 s ago")
+        poller.drain()
+        orderAgeMinutes(11)
+        lastCheckSecondsAgo(45)
+        assertFalse(due(), "11-minute-old order, checked 45 s ago")
+        lastCheckSecondsAgo(61)
+        assertTrue(due(), "11-minute-old order, checked 61 s ago")
+    }
+
+    @Test
     fun `with no webhook and no nudge, the sweep still finds the approval by asking PayPal (US-30)`() {
         val c = lockDeal()
         poller.drain()

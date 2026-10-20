@@ -28,7 +28,9 @@ class Sweeper(
         for (id in contracts.termsLockedPastDeadline(now)) safely("cancel $id") { funding.cancel(id, "deadline passed before both holds were placed") }
         for (id in contracts.heldPastDeadlineWithoutDelivery(now)) safely("expire $id") { funding.expire(id) }
         for (id in contracts.termsLockedWithBothHeld()) safely("repair $id") { funding.repairBothHeld(id) }
-        for (id in holds.awaitingApproval(now.minusSeconds(props.scheduling.orderPollSeconds))) outbox.enqueue(id, OutboxType.CHECK_ORDER)
+        // With webhooks configured the poll is only a backstop, so it starts at the middle tier.
+        val first = if (props.paypal.webhooksConfigured) maxOf(15L, props.scheduling.orderPollSeconds) else props.scheduling.orderPollSeconds
+        for (id in holds.awaitingApproval(now, first)) outbox.enqueue(id, OutboxType.CHECK_ORDER)
     }
 
     private fun safely(what: String, block: () -> Unit) {
