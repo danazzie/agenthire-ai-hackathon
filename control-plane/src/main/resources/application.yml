@@ -23,6 +23,9 @@ mutualstake:
     client-secret: ${PAYPAL_CLIENT_SECRET:}
     base-url: ${PAYPAL_BASE_URL:https://api-m.sandbox.paypal.com}
     webhook-id: ${PAYPAL_WEBHOOK_ID:}
+  verifier:
+    # Empty: the pinned Deno in .tools if present, else `deno` on PATH (the Docker image ships it).
+    deno-path: ${MUTUALSTAKE_DENO:}
   parties:
     buyer:
       handle: alex

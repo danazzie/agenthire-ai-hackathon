@@ -1,7 +1,5 @@
 package mutualstake.outbox
 
-import mutualstake.funding.FundingService
-import mutualstake.paypal.PayPalException
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -12,6 +10,9 @@ interface OutboxHandler {
 
     /** Must be idempotent: a crash after PayPal answered means the same event, same request id, runs again. */
     fun handle(event: OutboxEvent)
+
+    /** Called once retries are exhausted or the failure is permanent: say so on the row the event is about. */
+    fun onDead(event: OutboxEvent, reason: String)
 }
 
 /**
@@ -19,7 +20,7 @@ interface OutboxHandler {
  * the hold's PayPal-Request-Id, so PayPal answers with the original result instead of acting twice.
  */
 @Component
-class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHandler>, private val funding: FundingService) {
+class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHandler>) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val byType = handlers.associateBy { it.type }
 
@@ -51,21 +52,20 @@ class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHa
         try {
             handler.handle(event)
             outbox.markPublished(event.id)
-        } catch (e: PayPalException) {
-            fail(event, e.reason, e.retryable)
         } catch (e: Exception) {
-            log.warn("outbox {} for {} failed (attempt {})", event.type, event.aggregateId, event.attempts, e)
-            fail(event, "${e.javaClass.simpleName}: ${e.message}", retryable = true)
+            val classified = e as? ClassifiedFailure
+            if (classified == null) log.warn("outbox {} for {} failed (attempt {})", event.type, event.aggregateId, event.attempts, e)
+            fail(handler, event, classified?.reason ?: "${e.javaClass.simpleName}: ${e.message}", classified?.retryable ?: true)
         }
     }
 
-    private fun fail(event: OutboxEvent, reason: String, retryable: Boolean) {
+    private fun fail(handler: OutboxHandler, event: OutboxEvent, reason: String, retryable: Boolean) {
         if (retryable && event.attempts < MAX_ATTEMPTS) {
             outbox.retryLater(event.id, backoff(event.attempts), reason)
         } else {
-            // Nothing more will happen on its own: say so on the hold rather than retry forever.
+            // Nothing more will happen on its own: say so where people look, rather than retry forever.
             outbox.markDead(event.id, reason)
-            funding.flag(event.aggregateId, reason)
+            handler.onDead(event, reason)
         }
     }
 

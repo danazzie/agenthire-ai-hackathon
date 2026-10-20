@@ -1,6 +1,7 @@
 package mutualstake.paypal
 
 import mutualstake.money.Money
+import mutualstake.outbox.ClassifiedFailure
 import java.time.Instant
 import java.util.UUID
 
@@ -70,11 +71,12 @@ class PayPalException(
     val issue: String?,
     val debugId: String?,
     detail: String?,
-) : RuntimeException("PayPal $operation failed: ${httpStatus ?: "no response"} ${name.orEmpty()} ${issue.orEmpty()} ${detail.orEmpty()} (debug_id ${debugId ?: "none"})".trim()) {
+) : RuntimeException("PayPal $operation failed: ${httpStatus ?: "no response"} ${name.orEmpty()} ${issue.orEmpty()} ${detail.orEmpty()} (debug_id ${debugId ?: "none"})".trim()),
+    ClassifiedFailure {
 
-    val retryable: Boolean get() = name != NO_CREDENTIALS && (httpStatus == null || httpStatus >= 500 || httpStatus == 429)
+    override val retryable: Boolean get() = name != NO_CREDENTIALS && (httpStatus == null || httpStatus >= 500 || httpStatus == 429)
 
-    val reason: String
+    override val reason: String
         get() = when {
             name == NO_CREDENTIALS -> NO_CREDENTIALS
             httpStatus == null -> "paypal_unreachable: $operation"

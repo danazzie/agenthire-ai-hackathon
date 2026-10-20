@@ -2,6 +2,7 @@ package mutualstake.api
 
 import mutualstake.contract.IllegalTransitionException
 import mutualstake.contract.StaleStateException
+import mutualstake.verifier.VerifierUnavailableException
 import org.springframework.dao.DataAccessException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -24,6 +25,9 @@ class ApiErrors {
 
     @ExceptionHandler(StaleStateException::class)
     fun stale(e: StaleStateException) = problem(HttpStatus.CONFLICT, "stale_state", e.message)
+
+    @ExceptionHandler(VerifierUnavailableException::class)
+    fun verifierUnavailable(e: VerifierUnavailableException) = problem(HttpStatus.SERVICE_UNAVAILABLE, "verifier_unavailable", e.reason)
 
     @ExceptionHandler(MissingRequestHeaderException::class)
     fun missingHeader(e: MissingRequestHeaderException) =

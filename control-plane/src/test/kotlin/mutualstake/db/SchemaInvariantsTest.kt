@@ -18,7 +18,7 @@ class SchemaInvariantsTest @Autowired constructor(private val jdbc: JdbcClient) 
     fun `flyway applied every migration`() {
         val applied = jdbc.sql("select version from flyway_schema_history where success order by installed_rank")
             .query(String::class.java).list()
-        assertEquals(listOf("1", "2"), applied)
+        assertEquals(listOf("1", "2", "3"), applied)
     }
 
     // Verifier (US-18) ------------------------------------------------------------------

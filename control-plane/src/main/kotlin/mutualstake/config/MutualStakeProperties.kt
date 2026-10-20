@@ -12,6 +12,7 @@ data class MutualStakeProperties(
     val parties: Parties = Parties(),
     val session: SessionDefaults = SessionDefaults(),
     val scheduling: Scheduling = Scheduling(),
+    val verifier: Verifier = Verifier(),
 ) {
     data class PayPal(
         val clientId: String = "",
@@ -34,6 +35,14 @@ data class MutualStakeProperties(
 
     /** US-25: what one session's agents may commit, and on how many jobs. */
     data class SessionDefaults(val capMinor: Long = 3000, val maxJobs: Int = 2)
+
+    /** The sandboxed verifier runtime (Deno). An empty path means the pinned download in .tools, else PATH. */
+    data class Verifier(
+        val denoPath: String = "",
+        val timeoutMs: Long = 5000,
+        val maxHeapMb: Int = 64,
+        val maxDeliveryChars: Int = 20_000,
+    )
 
     data class Scheduling(
         val enabled: Boolean = true,

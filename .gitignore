@@ -23,3 +23,6 @@ dist/
 # raw scratch logs are not.
 docs/spikes/*.log
 docs/spikes/.us4-state.json
+
+# Pinned tool downloads (Deno for the verifier sandbox)
+.tools/

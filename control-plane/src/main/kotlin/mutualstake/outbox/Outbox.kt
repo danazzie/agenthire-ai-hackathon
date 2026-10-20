@@ -9,8 +9,14 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
-/** Work that calls PayPal. Written in the same transaction as the state change that needs it. */
-enum class OutboxType { CREATE_ORDER, CHECK_ORDER, AUTHORIZE, VOID }
+/** Work done outside the request: PayPal calls and verifier runs. Written in the same transaction as the state change that needs it. */
+enum class OutboxType { CREATE_ORDER, CHECK_ORDER, AUTHORIZE, VOID, RUN_VERIFIER }
+
+/** A failure that knows what it is: [reason] lands on the row that needs attention; [retryable] says whether waiting can help. */
+interface ClassifiedFailure {
+    val reason: String
+    val retryable: Boolean
+}
 
 data class OutboxEvent(val id: UUID, val aggregateId: UUID, val type: OutboxType, val attempts: Int, val createdAt: Instant = Instant.EPOCH)
 

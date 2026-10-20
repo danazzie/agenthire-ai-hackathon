@@ -1,4 +1,6 @@
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
+import java.security.MessageDigest
+import java.util.zip.ZipInputStream
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -33,6 +35,54 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation(libs.archunit)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// The verifier sandbox runs in Deno. A pinned release is downloaded into .tools and checked against
+// these SHA-256s (each verified against Deno's published checksum when pinned), so nobody has to install it.
+val denoVersion = "2.9.7"
+val denoChecksums = mapOf(
+    "aarch64-apple-darwin" to "5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c",
+    "x86_64-apple-darwin" to "95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a",
+    "x86_64-unknown-linux-gnu" to "c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490",
+    "aarch64-unknown-linux-gnu" to "c832298b1ad4422481334855f6003e0f54145762c5a134f20a489511d2f65bbf",
+)
+val denoBinary: File = rootProject.file(".tools/deno-$denoVersion/deno")
+
+val installDeno by tasks.registering {
+    description = "Downloads the pinned Deno $denoVersion used as the verifier sandbox, checking its SHA-256."
+    group = "build setup"
+    outputs.file(denoBinary)
+    doLast {
+        if (denoBinary.canExecute()) return@doLast
+        val os = System.getProperty("os.name").lowercase()
+        val arm = System.getProperty("os.arch").lowercase() in setOf("aarch64", "arm64")
+        val target = when {
+            "mac" in os -> if (arm) "aarch64-apple-darwin" else "x86_64-apple-darwin"
+            "linux" in os -> if (arm) "aarch64-unknown-linux-gnu" else "x86_64-unknown-linux-gnu"
+            else -> throw GradleException("no pinned Deno for $os; install deno $denoVersion and set MUTUALSTAKE_DENO")
+        }
+        val url = "https://github.com/denoland/deno/releases/download/v$denoVersion/deno-$target.zip"
+        val zip = uri(url).toURL().openStream().use { it.readBytes() }
+        val sha = MessageDigest.getInstance("SHA-256").digest(zip).joinToString("") { "%02x".format(it) }
+        if (sha != denoChecksums.getValue(target)) throw GradleException("checksum mismatch for $url: got $sha")
+        ZipInputStream(zip.inputStream()).use { entries ->
+            generateSequence { entries.nextEntry }.first { it.name == "deno" }
+            denoBinary.parentFile.mkdirs()
+            denoBinary.outputStream().use { entries.copyTo(it) }
+        }
+        denoBinary.setExecutable(true)
+        logger.lifecycle("Deno $denoVersion ($target) installed at $denoBinary")
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    dependsOn(installDeno)
+    systemProperty("mutualstake.verifier.deno-path", denoBinary.absolutePath)
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    dependsOn(installDeno)
+    systemProperty("mutualstake.verifier.deno-path", denoBinary.absolutePath)
 }
 
 tasks.test {

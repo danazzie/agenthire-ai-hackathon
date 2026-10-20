@@ -1,10 +1,12 @@
 package mutualstake.api
 
+import com.fasterxml.jackson.databind.JsonNode
 import mutualstake.config.MutualStakeProperties
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.NegotiationService
 import mutualstake.contract.OfferKind
 import mutualstake.contract.SellerType
+import mutualstake.delivery.DeliveryService
 import mutualstake.funding.FundingService
 import mutualstake.hold.HoldRepository
 import mutualstake.money.Money
@@ -15,6 +17,7 @@ import mutualstake.party.PartyRepository
 import mutualstake.paypal.PayPalGateway
 import mutualstake.session.SessionService
 import mutualstake.verifier.VerifierRepository
+import mutualstake.verifier.VerifierService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -30,7 +33,10 @@ import java.util.UUID
 /** v1 has two seeded identities and no login: the acting party names itself in this header. */
 const val PARTY_HEADER = "X-Party"
 
-data class SaveVerifierRequest(val source: String, val language: String = "javascript")
+/** The plain-English job and the structured test an agent compiled it into: {"checks": [ ... ]}. */
+data class CompileRequest(val jobText: String, val test: JsonNode?)
+
+data class TextRequest(val text: String)
 
 data class OpenContractRequest(val seller: String, val jobText: String, val feeCapMinor: Long, val sellerType: SellerType = SellerType.AGENT)
 
@@ -61,17 +67,20 @@ class ContractController(
     private val outbox: OutboxRepository,
     private val paypal: PayPalGateway,
     private val props: MutualStakeProperties,
+    private val verifierService: VerifierService,
+    private val deliveryService: DeliveryService,
 ) {
     @GetMapping("/status")
     fun status() = StatusView(paypal.configured, props.paypal.webhooksConfigured, parties.all().map(::PartyView), SessionView(sessions.current()))
 
-    /** Stores a verifier and returns its SHA-256. Step 4 replaces this with compilation and a sandboxed dry run. */
-    @PostMapping("/verifiers")
-    fun saveVerifier(@RequestBody request: SaveVerifierRequest): ResponseEntity<VerifierView> {
-        if (request.language != "javascript") throw ApiException.unprocessable("unsupported_language", "verifiers are javascript")
-        if (request.source.isBlank()) throw ApiException.unprocessable("empty_verifier", "a verifier needs source")
-        return ResponseEntity.status(HttpStatus.CREATED).body(VerifierView(verifiers.save(request.source, request.language)))
-    }
+    /** Compiles a structured test into a verifier and returns its source and SHA-256 (US-1, US-9). */
+    @PostMapping("/verifiers/compile")
+    fun compile(@RequestBody request: CompileRequest): ResponseEntity<VerifierView> =
+        ResponseEntity.status(HttpStatus.CREATED).body(VerifierView(verifierService.compile(request.jobText, request.test)))
+
+    /** Runs a verifier on any text with nothing at stake: the seller's agent checks its work first. */
+    @PostMapping("/verifiers/{id}/dry-run")
+    fun dryRun(@PathVariable id: UUID, @RequestBody request: TextRequest) = DryRunView(verifierService.dryRun(id, request.text))
 
     @GetMapping("/verifiers/{id}")
     fun verifier(@PathVariable id: UUID) = VerifierView(verifiers.byId(id) ?: throw ApiException.notFound("verifier $id"))
@@ -94,6 +103,13 @@ class ContractController(
             id, party(handle), request.kind, Money(request.feeMinor), Money(request.bondMinor), request.deadlineAt, request.verifierId, request.note,
         )
         return views.of(contract)
+    }
+
+    /** The seller delivers. The text is data: the agreed verifier judges it; nothing in it is obeyed (US-20). */
+    @PostMapping("/contracts/{id}/deliveries")
+    fun deliver(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID, @RequestBody request: TextRequest): ResponseEntity<ContractView> {
+        deliveryService.submit(id, party(handle), request.text)
+        return ResponseEntity.status(HttpStatus.CREATED).body(views.of(contracts.find(id)!!))
     }
 
     @PostMapping("/contracts/{id}/cancel")

@@ -6,6 +6,10 @@ import mutualstake.contract.OfferKind
 import mutualstake.contract.OfferRepository
 import mutualstake.contract.SellerType
 import mutualstake.contract.TermsDocument
+import mutualstake.delivery.BlobStore
+import mutualstake.delivery.DeliveryRepository
+import mutualstake.delivery.RunRecord
+import mutualstake.delivery.VerifierRunLog
 import mutualstake.hold.Hold
 import mutualstake.hold.HoldRepository
 import mutualstake.hold.HoldSide
@@ -14,6 +18,9 @@ import mutualstake.ledger.LedgerRepository
 import mutualstake.party.Party
 import mutualstake.party.PartyRepository
 import mutualstake.session.Session
+import mutualstake.verifier.CheckResult
+import mutualstake.verifier.DryRun
+import mutualstake.verifier.RunOutcome
 import mutualstake.verifier.Verifier
 import mutualstake.verifier.VerifierRepository
 import org.springframework.stereotype.Component
@@ -44,9 +51,46 @@ data class SessionView(val id: UUID, val startedAt: Instant, val capMinor: Long,
 
 data class StatusView(val paypalConfigured: Boolean, val webhooksConfigured: Boolean, val parties: List<PartyView>, val session: SessionView)
 
-data class VerifierView(val id: UUID, val sha256: String, val language: String, val source: String, val compiledAt: Instant) {
-    constructor(v: Verifier) : this(v.id, v.sha256, v.language, v.source, v.compiledAt)
+data class VerifierView(val id: UUID, val sha256: String, val language: String, val source: String, val compiledAt: Instant, val spec: String?) {
+    constructor(v: Verifier) : this(v.id, v.sha256, v.language, v.source, v.compiledAt, v.spec)
 }
+
+/** How a verdict was reached, with what anyone needs to replay it: the source, harness and runtime it ran on. */
+data class RunView(
+    val id: UUID, val outcome: RunOutcome, val runtime: String, val harnessSha256: String, val sourceSha256: String,
+    val inputSha256: String, val durationMs: Int, val ranAt: Instant, val error: String?,
+) {
+    constructor(r: RunRecord) : this(r.id, r.outcome, r.runtime, r.harnessSha256, r.sourceSha256, r.inputSha256, r.durationMs, r.ranAt, r.error)
+}
+
+data class DryRunView(
+    val outcome: RunOutcome, val checks: List<CheckResult>, val summary: String?, val failingCheck: String?, val error: String?,
+    val injectionFlags: List<String>, val runtime: String, val harnessSha256: String, val sourceSha256: String, val durationMs: Int,
+) {
+    constructor(d: DryRun) : this(
+        d.run.outcome, d.run.checks, d.run.summary, d.run.failingCheck, d.run.error, d.injectionFlags,
+        d.run.runtime, d.run.harnessSha256, d.run.sourceSha256, d.run.durationMs,
+    )
+}
+
+data class DeliveryView(
+    val id: UUID,
+    val submittedAt: Instant,
+    val payloadSha256: String,
+    /** The exact delivered text: data, shown as data. */
+    val text: String,
+    val verdict: String?,
+    val failingCheck: String?,
+    val summary: String?,
+    val checks: List<CheckResult>,
+    val injectionFlags: List<String>,
+    val verifiedAt: Instant?,
+    val run: RunView?,
+    /** Every attempt, including runs that gave no verdict. */
+    val attempts: Int,
+    val needsAttention: Boolean,
+    val attentionReason: String?,
+)
 
 data class OfferView(
     val id: UUID, val party: String, val kind: OfferKind, val feeMinor: Long, val bondMinor: Long,
@@ -85,6 +129,7 @@ data class ContractView(
     val offers: List<OfferView>,
     val transitions: List<TransitionView>,
     val ledger: List<LedgerView>,
+    val delivery: DeliveryView?,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -97,7 +142,21 @@ class ContractViews(
     private val parties: PartyRepository,
     private val verifiers: VerifierRepository,
     private val ledger: LedgerRepository,
+    private val deliveries: DeliveryRepository,
+    private val blobs: BlobStore,
+    private val runs: VerifierRunLog,
 ) {
+    fun delivery(contractId: UUID): DeliveryView? {
+        val d = deliveries.forContract(contractId) ?: return null
+        val attempts = runs.forDelivery(d.id)
+        val decided = d.traceRef?.removePrefix("verifier_run:")?.let { runs.find(UUID.fromString(it)) }
+        return DeliveryView(
+            d.id, d.submittedAt, d.payloadSha256, blobs.bytes(d.payloadSha256).toString(Charsets.UTF_8), d.verdict, d.failingCheck,
+            decided?.summary, decided?.checks.orEmpty(), d.injectionFlags, d.verifiedAt, (decided ?: attempts.lastOrNull())?.let(::RunView),
+            attempts.size, d.needsAttention, d.attentionReason,
+        )
+    }
+
     fun of(contract: Contract): ContractView {
         val buyer = parties.byId(contract.buyerId)
         val seller = parties.byId(contract.sellerId)
@@ -136,6 +195,7 @@ class ContractViews(
             },
             transitions = contracts.transitions(contract.id).map { TransitionView(it.from.name, it.to.name, it.cause, it.occurredAt) },
             ledger = ledger.forContract(contract.id).map { LedgerView(it.event.name, it.direction.name, it.amount.minor, it.counterparty, it.paypalRef, it.occurredAt) },
+            delivery = delivery(contract.id),
             createdAt = contract.createdAt,
             updatedAt = contract.updatedAt,
         )

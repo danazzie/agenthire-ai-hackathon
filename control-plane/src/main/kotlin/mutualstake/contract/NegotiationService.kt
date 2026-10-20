@@ -53,7 +53,10 @@ class NegotiationService(
         }
         if (fee.minor <= 0 || bond.minor <= 0) throw ApiException.unprocessable("invalid_amount", "fee and bond must both be positive")
         if (bond.minor * 2 > fee.minor) throw ApiException.unprocessable("bond_too_large", "the bond is never above 50% of the fee (US-7)")
-        verifiers.byId(verifierId) ?: throw ApiException.unprocessable("unknown_verifier", "no verifier $verifierId")
+        val verifier = verifiers.byId(verifierId) ?: throw ApiException.unprocessable("unknown_verifier", "no verifier $verifierId")
+        if (verifier.spec == null) {
+            throw ApiException.unprocessable("verifier_not_compiled", "offers must name a verifier compiled from a structured test")
+        }
         val terms = Terms(fee, bond, Terms.normalizeDeadline(deadline), verifierId)
         if (!terms.deadlineAt.isAfter(clock.instant())) throw ApiException.unprocessable("deadline_passed", "the deadline must be in the future")
         if (kind == OfferKind.ACCEPT && fee > contract.feeCap) {

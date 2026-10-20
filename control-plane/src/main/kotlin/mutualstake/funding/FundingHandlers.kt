@@ -42,6 +42,8 @@ class CreateOrderHandler(
         )
         funding.recordOrderCreated(hold.id, order)
     }
+
+    override fun onDead(event: OutboxEvent, reason: String) = funding.flag(event.aggregateId, reason)
 }
 
 /** Reads the order back from PayPal: the webhook, the poll and the return-page nudge all land here. */
@@ -55,6 +57,8 @@ class CheckOrderHandler(private val holds: HoldRepository, private val paypal: P
         if (hold.state != HoldState.ORDER_CREATED && hold.state != HoldState.APPROVED) return
         funding.recordOrderState(hold.id, paypal.getOrder(orderId, hold.id))
     }
+
+    override fun onDead(event: OutboxEvent, reason: String) = funding.flag(event.aggregateId, reason)
 }
 
 /** Places the hold. A replay or a second signal that finds it already placed recovers the authorization. */
@@ -75,6 +79,8 @@ class AuthorizeHandler(private val holds: HoldRepository, private val paypal: Pa
         } ?: throw IllegalStateException("PayPal returned no authorization for order $orderId")
         funding.recordAuthorization(hold.id, authorization)
     }
+
+    override fun onDead(event: OutboxEvent, reason: String) = funding.flag(event.aggregateId, reason)
 }
 
 /** Releases a hold. Void is not a refund: nothing was taken. */
@@ -95,4 +101,6 @@ class VoidHandler(private val holds: HoldRepository, private val paypal: PayPalG
         check(authorization.status == "VOIDED") { "void of $authorizationId left it ${authorization.status}" }
         funding.recordVoided(hold.id, authorization)
     }
+
+    override fun onDead(event: OutboxEvent, reason: String) = funding.flag(event.aggregateId, reason)
 }

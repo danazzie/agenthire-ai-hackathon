@@ -28,6 +28,7 @@ import mutualstake.session.SessionService
 import mutualstake.support.FakePayPal
 import mutualstake.support.IntegrationTest
 import mutualstake.support.MutableClock
+import mutualstake.support.compiledVerifier
 import mutualstake.support.quiesceOutbox
 import mutualstake.verifier.Verifier
 import mutualstake.verifier.VerifierRepository
@@ -81,7 +82,7 @@ class FundingFlowTest @Autowired constructor(
         sessions.startNew(Money(3000), 2)
         alex = parties.byHandle("alex")!!
         maya = parties.byHandle("maya")!!
-        verifier = verifiers.save("export function verify(text) { return { pass: true, checks: [] }; } // ${UUID.randomUUID()}")
+        verifier = compiledVerifier(verifiers)
     }
 
     private fun deadline(): Instant = clock.instant().plus(Duration.ofHours(1))
