@@ -40,7 +40,7 @@ function die(message) {
 
 function env(key, fallback) {
   const value = process.env[key] || fallback;
-  if (!value) die(`no_credentials: ${key} is not set (copy .env.example to .env)`);
+  if (!value) die(`no_credentials: ${key} is ${existsSync(join(root, '.env')) ? 'empty in .env' : 'not set (copy .env.example to .env)'}`);
   return value;
 }
 
