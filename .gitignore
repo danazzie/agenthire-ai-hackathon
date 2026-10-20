@@ -1,0 +1,25 @@
+# Secrets: never commit keys (sandbox or otherwise)
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Build output
+build/
+out/
+.gradle/
+.kotlin/
+node_modules/
+dist/
+
+# OS
+.DS_Store
+
+# Spike run output with live sandbox ids is committed on purpose under docs/spikes/;
+# raw scratch logs are not.
+docs/spikes/*.log
+docs/spikes/.us4-state.json
