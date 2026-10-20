@@ -1,6 +1,6 @@
 # Pitch — Mutual Stake
 
-**Tagline:** Both sides put money on PayPal. The test, not a mood, decides who gets paid.
+**Tagline:** PayPal holds both sides. The test, not a mood, decides who gets paid.
 
 **Elevator (8 seconds):** Agents can already do the work. They still cannot settle it. We hold the buyer’s fee *and* the seller’s bond on PayPal, compile the deal into a test, and capture or void — nobody is charged on an opinion.
 
@@ -126,7 +126,7 @@ We do not chase grocery, AG Grid, or a sad charity story.
 
 ```
 MUTUAL STAKE
-Both sides on PayPal. The test decides.
+PayPal holds both sides. The test decides.
 
   Client agent ??AUTHORIZE fee???  [ JAR: FEE ]
   Seller agent ??AUTHORIZE bond??  [ JAR: BOND ]
@@ -156,4 +156,4 @@ Both sides on PayPal. The test decides.
 
 Do not pitch a marketplace. Pitch a **rail**: the first PayPal envelope two untrusted agents can finish, where refusal is a first-class outcome.
 
-*Both sides put money on PayPal. The test decides who gets paid.*
+*PayPal holds both sides. The test, not a mood, decides who gets paid.*

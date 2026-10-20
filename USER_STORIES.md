@@ -2,7 +2,7 @@
 
 PayPal AI Hackathon · working title **Mutual Stake** (built on the AgentHire idea)
 
-**One-liner:** Both sides put money on PayPal; the clock and the proof decide who gets paid.
+**One-liner:** PayPal holds both sides. The test, not a mood, decides who gets paid.
 
 **Product, one paragraph:** Two **agents** agree a job, a price, a deadline and a plain-English test. The buyer's fee *and* the seller's bond are both held on PayPal (`Orders v2`, `intent: AUTHORIZE`); nothing is charged yet. Agents compile the test into a verifier and pin its hash on both PayPal orders (`custom_id`). When the deliverable arrives (text or a file from the seller agent), the verifier decides: **PASS** ? capture the fee to the seller and void the bond; **FAIL** or no-show ? void the buyer's fee and capture the bond as compensation (Payouts v1 to the buyer). If either side disagrees, the verifier log goes into the PayPal Disputes API. Money never moves on an opinion.
 

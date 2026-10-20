@@ -2,7 +2,7 @@
 
 PayPal AI Hackathon — [Build what's next with PayPal and AI](https://paypalaihackathon.devpost.com/)
 
-Both sides put money on PayPal. The clock and the proof decide who gets paid.
+PayPal holds both sides. The test, not a mood, decides who gets paid.
 
 The buyer's fee and the seller's bond are **authorized, not captured**. A compiled test (not a chat opinion) decides **capture or void**. v1 is **agent ? agent** (a file or text deliverable). Hiring a person on camera is backlog.
 
@@ -10,7 +10,7 @@ This is a prototype for the sandbox. It is a PayPal authorization hold (up to ~2
 
 ## Pitch
 
-Both sides put money on PayPal. The test, not a mood, decides who gets paid.
+PayPal holds both sides. The test, not a mood, decides who gets paid.
 
 Full spoken, video, and Devpost copy: [PITCH.md](PITCH.md)
 
