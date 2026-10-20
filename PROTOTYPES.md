@@ -66,7 +66,7 @@ Jar states: **Empty** · **Held** · **Paid** · **Released** · **Compensation**
 
 | Branch | Proof |
 |---|---|
-| Pass | *Beanhouse pours slow mornings into small cups. Local beans, oat milk on tap, a bench by the window that fits one laptop and two friends. Come for the cortado, stay for the quiet. Open seven to five, every day, two doors down from the bookshop on Elm.* (50 words) |
+| Pass | *Beanhouse pours slow mornings into small cups. Local beans, oat milk on tap, a bench by the window that fits one laptop and two friends. Come for the cortado, stay for the quiet. Open seven to five, every single day, just two doors down from the old bookshop on Elm.* (50 words) |
 | Fail | *Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.* (12 words) |
 
 **Verdict**
