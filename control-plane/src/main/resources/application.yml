@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: mutual-stake
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mutualstake}
+    username: ${DB_USER:mutualstake}
+    password: ${DB_PASSWORD:mutualstake}
+  flyway:
+    locations: classpath:db/migration
+
+server:
+  # Render injects PORT. Locally 8088, because 8080 is commonly taken.
+  port: ${PORT:8088}

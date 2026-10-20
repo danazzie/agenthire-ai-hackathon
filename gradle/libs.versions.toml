@@ -1,0 +1,13 @@
+[versions]
+kotlin = "2.2.21"
+spring-boot = "3.5.16"
+archunit = "1.5.1"
+
+[libraries]
+kotlin-bom = { module = "org.jetbrains.kotlin:kotlin-bom", version.ref = "kotlin" }
+archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
