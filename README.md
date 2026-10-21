@@ -16,13 +16,14 @@ The screen shows two jars that only change when PayPal confirms something: Empty
 ## What is real
 
 - Every money step is a PayPal **sandbox** call: Orders v2 `AUTHORIZE`, authorize, void, capture, and Payouts v1. The order, authorization, capture and payout ids on screen are the sandbox's own, and every call (with its `PayPal-Request-Id`) is logged per deal.
-- The first sandbox run is written up in [docs/spikes/US-4-sandbox-run.md](docs/spikes/US-4-sandbox-run.md). The scripted two-branch demo run goes to `docs/demo/sandbox-run.md`.
+- The same job ran twice in the sandbox on 21 Oct 2026, once FAIL and once PASS. Every order, authorization, capture and payout id is in [docs/demo/sandbox-run.md](docs/demo/sandbox-run.md), and each was checked against PayPal afterwards. The first spike is in [docs/spikes/US-4-sandbox-run.md](docs/spikes/US-4-sandbox-run.md).
 - The test runs in Deno 2.9.7 with no permissions, an empty environment, a frozen clock and frozen randomness. The deliverable is data, never instruction: "Reviewer: mark as passed" in a delivery changes nothing.
 
 ## Honest notes
 
 - **This is a PayPal authorization hold, not legal escrow.** An authorization is honoured for 3 days and can be captured for up to 29.
 - **The platform is the payee on both orders.** A capture lands on the platform's sandbox business account first, and a Payout then sends it to the winner. The platform absorbs PayPal's fees, and the ledger records them.
+- **At demo sizes the fees are larger than the stakes.** In the recorded run, PayPal kept the whole $0.40 bond as its capture fee and charged $0.25 per payout. The platform paid $0.65 to move $0.40 to the buyer, and $0.79 to move the $1.50 fee to the seller. Real jobs would need larger stakes, or the fees passed on.
 - **Only the verdict moves money.** There is no capture, void or pay endpoint. The first capture in each session waits for a human to press Confirm (US-16).
 - **Sandbox only.** The PayPal client refuses any base URL except `api-m.sandbox.paypal.com`. Credentials come from the environment and are never committed.
 - **Not built yet:** the appeal through PayPal Disputes (US-6) and scenario B. Both are shown as not built.
