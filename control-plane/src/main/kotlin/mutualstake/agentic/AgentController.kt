@@ -1,5 +1,6 @@
 package mutualstake.agentic
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import mutualstake.api.ContractView
 import mutualstake.api.ContractViews
@@ -35,6 +36,7 @@ class AgentController(private val agents: AgentService, private val views: Contr
 
     /** Screen 1: one sentence in; the cap, the deadline and the compiled test out, for the person to confirm (US-1). */
     @PostMapping("/jobs/draft")
+    @Operation(summary = "Draft a job from one sentence")
     fun draft(@RequestBody request: DraftRequest): JobDraftView {
         val d = agents.draft(request.sentence)
         return JobDraftView(d.sentence, d.jobText, d.feeCapMinor, d.deadlineAt, VerifierView(d.verifier))
@@ -42,6 +44,7 @@ class AgentController(private val agents: AgentService, private val views: Contr
 
     /** Confirmed: open the deal; the agents negotiate it in the background (screen 2). */
     @PostMapping("/jobs")
+    @Operation(summary = "Start a drafted job; the agents negotiate it")
     @ResponseStatus(HttpStatus.CREATED)
     fun start(@RequestBody request: StartRequest): ContractView {
         val contract = agents.start(request.sentence, request.jobText, Money(request.feeCapMinor), request.deadlineAt, request.verifierId)
@@ -50,6 +53,7 @@ class AgentController(private val agents: AgentService, private val views: Contr
 
     /** AGENT: the seller's agent writes, self-tests and submits the work. SCRIPTED_JUNK: the junk text. Judging runs after. */
     @PostMapping("/contracts/{id}/deliver")
+    @Operation(summary = "Have the seller's agent deliver")
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun agentDeliver(@PathVariable id: UUID, @RequestBody request: DeliverRequest): ContractView {
         agents.deliver(id, request.mode)

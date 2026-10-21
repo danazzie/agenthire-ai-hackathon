@@ -1,6 +1,8 @@
 package mutualstake.api
 
 import com.fasterxml.jackson.databind.JsonNode
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import mutualstake.agents.Claude
 import mutualstake.config.MutualStakeProperties
@@ -43,7 +45,13 @@ data class CompileRequest(val jobText: String, val test: JsonNode?)
 
 data class TextRequest(val text: String)
 
-data class OpenContractRequest(val seller: String, val jobText: String, val feeCapMinor: Long, val sellerType: SellerType = SellerType.AGENT)
+data class OpenContractRequest(
+    val seller: String,
+    val jobText: String,
+    val feeCapMinor: Long,
+    @field:Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, defaultValue = "AGENT")
+    val sellerType: SellerType = SellerType.AGENT,
+)
 
 data class OfferRequest(
     val kind: OfferKind,
@@ -80,21 +88,26 @@ class ContractController(
     private val claude: Claude,
 ) {
     @GetMapping("/status")
+    @Operation(summary = "Read the control plane status and the current session")
     fun status() = StatusView(paypal.configured, props.paypal.webhooksConfigured, claude.available, parties.all().map(::PartyView), SessionView(sessions.current()))
 
     /** Compiles a structured test into a verifier and returns its source and SHA-256 (US-1, US-9). */
     @PostMapping("/verifiers/compile")
+    @Operation(summary = "Compile a structured test into a verifier")
     @ResponseStatus(HttpStatus.CREATED)
     fun compile(@RequestBody request: CompileRequest): VerifierView = VerifierView(verifierService.compile(request.jobText, request.test))
 
     /** Runs a verifier on any text with nothing at stake: the seller's agent checks its work first. */
     @PostMapping("/verifiers/{id}/dry-run")
+    @Operation(summary = "Run a verifier on any text, with nothing at stake")
     fun dryRun(@PathVariable id: UUID, @RequestBody request: TextRequest) = DryRunView(verifierService.dryRun(id, request.text))
 
     @GetMapping("/verifiers/{id}")
+    @Operation(summary = "Get a verifier and its source")
     fun verifier(@PathVariable id: UUID) = VerifierView(verifiers.byId(id) ?: throw ApiException.notFound("verifier $id"))
 
     @PostMapping("/contracts")
+    @Operation(summary = "Open a deal (as the buyer)")
     @ResponseStatus(HttpStatus.CREATED)
     fun open(@RequestHeader(PARTY_HEADER) handle: String, @RequestBody request: OpenContractRequest): ContractView {
         val contract = negotiation.open(party(handle), request.seller, request.jobText, Money(request.feeCapMinor), request.sellerType)
@@ -102,12 +115,15 @@ class ContractController(
     }
 
     @GetMapping("/contracts")
+    @Operation(summary = "List this session's deals")
     fun list(): List<ContractView> = contracts.inSession(sessions.current().id).map(views::of)
 
     @GetMapping("/contracts/{id}")
+    @Operation(summary = "Get a deal: terms, both jars, ledger and history")
     fun get(@PathVariable id: UUID): ContractView = views.of(contracts.find(id) ?: throw ApiException.notFound("contract $id"))
 
     @PostMapping("/contracts/{id}/offers")
+    @Operation(summary = "Propose or accept terms")
     fun offer(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID, @RequestBody request: OfferRequest): ContractView {
         val contract = negotiation.offer(
             id, party(handle), request.kind, Money(request.feeMinor), Money(request.bondMinor), request.deadlineAt, request.verifierId, request.note,
@@ -117,6 +133,7 @@ class ContractController(
 
     /** The seller delivers. The text is data: the agreed verifier judges it; nothing in it is obeyed (US-20). */
     @PostMapping("/contracts/{id}/deliveries")
+    @Operation(summary = "Deliver the work (as the seller)")
     @ResponseStatus(HttpStatus.CREATED)
     fun deliver(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID, @RequestBody request: TextRequest): ContractView {
         deliveryService.submit(id, party(handle), request.text)
@@ -128,10 +145,12 @@ class ContractController(
      * already decided; it cannot capture on its own. Not an agent tool: the agents never get this endpoint.
      */
     @PostMapping("/contracts/{id}/confirm")
+    @Operation(summary = "Confirm the session's first capture (US-16)")
     fun confirm(@PathVariable id: UUID): ContractView = views.of(settlement.confirm(id))
 
     /** The PayPal calls behind a deal, each with its PayPal-Request-Id and debug id. Reads (polling) only on request. */
     @GetMapping("/contracts/{id}/paypal-calls")
+    @Operation(summary = "List a deal's PayPal calls")
     fun paypalCalls(@PathVariable id: UUID, @RequestParam(defaultValue = "false") reads: Boolean): List<Map<String, Any?>> =
         callLog.forContract(id, reads).map { (side, c) ->
             mapOf("side" to side, "operation" to c.operation, "method" to c.method, "path" to c.path, "requestId" to c.requestId,
@@ -139,6 +158,7 @@ class ContractController(
         }
 
     @PostMapping("/contracts/{id}/cancel")
+    @Operation(summary = "Cancel a deal before both holds are placed")
     fun cancel(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID): ContractView {
         val party = party(handle)
         val contract = contracts.find(id) ?: throw ApiException.notFound("contract $id")
@@ -151,6 +171,7 @@ class ContractController(
 
     /** A nudge after the payer returns from PayPal. It only asks PayPal again; it never sets a state itself. */
     @PostMapping("/holds/{id}/check")
+    @Operation(summary = "Ask PayPal again about a hold")
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun check(@PathVariable id: UUID): Map<String, Any> {
         val hold = holds.find(id) ?: throw ApiException.notFound("hold $id")

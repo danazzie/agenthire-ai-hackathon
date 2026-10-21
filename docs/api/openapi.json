@@ -68,6 +68,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Have the seller's agent deliver",
         "tags" : [ "Agents" ]
       }
     },
@@ -106,6 +107,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Start a drafted job; the agents negotiate it",
         "tags" : [ "Agents" ]
       }
     },
@@ -144,6 +146,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Draft a job from one sentence",
         "tags" : [ "Agents" ]
       }
     },
@@ -175,6 +178,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "List this session's deals",
         "tags" : [ "Deals" ]
       },
       "post" : {
@@ -219,6 +223,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Open a deal (as the buyer)",
         "tags" : [ "Deals" ]
       }
     },
@@ -256,6 +261,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Get a deal: terms, both jars, ledger and history",
         "tags" : [ "Deals" ]
       }
     },
@@ -300,6 +306,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Cancel a deal before both holds are placed",
         "tags" : [ "Deals" ]
       }
     },
@@ -337,6 +344,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Confirm the session's first capture (US-16)",
         "tags" : [ "Deals" ]
       }
     },
@@ -391,6 +399,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Deliver the work (as the seller)",
         "tags" : [ "Deals" ]
       }
     },
@@ -445,6 +454,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Propose or accept terms",
         "tags" : [ "Deals" ]
       }
     },
@@ -496,6 +506,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "List a deal's PayPal calls",
         "tags" : [ "Deals" ]
       }
     },
@@ -524,6 +535,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Reset the demo session (US-31)",
         "tags" : [ "Demo" ]
       }
     },
@@ -564,6 +576,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Ask PayPal again about a hold",
         "tags" : [ "Deals" ]
       }
     },
@@ -592,6 +605,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Read the control plane status and the current session",
         "tags" : [ "Deals" ]
       }
     },
@@ -630,6 +644,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Compile a structured test into a verifier",
         "tags" : [ "Deals" ]
       }
     },
@@ -667,6 +682,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Get a verifier and its source",
         "tags" : [ "Deals" ]
       }
     },
@@ -714,6 +730,7 @@
             "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
           }
         },
+        "summary" : "Run a verifier on any text, with nothing at stake",
         "tags" : [ "Deals" ]
       }
     }
@@ -1248,7 +1265,7 @@
         }
       },
       "OpenContractRequest" : {
-        "required" : [ "feeCapMinor", "jobText", "seller", "sellerType" ],
+        "required" : [ "feeCapMinor", "jobText", "seller" ],
         "type" : "object",
         "properties" : {
           "feeCapMinor" : {
@@ -1263,7 +1280,8 @@
           },
           "sellerType" : {
             "type" : "string",
-            "enum" : [ "AGENT", "HUMAN" ]
+            "enum" : [ "AGENT", "HUMAN" ],
+            "default" : "AGENT"
           }
         }
       },

@@ -1,5 +1,6 @@
 package mutualstake.demo
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import mutualstake.api.ApiException
 import mutualstake.api.SessionView
@@ -68,5 +69,6 @@ class DemoReset(
 class DemoController(private val demo: DemoReset) {
     /** US-31. Drafts stay in the archived session, where they can no longer lock terms. */
     @PostMapping("/reset")
+    @Operation(summary = "Reset the demo session (US-31)")
     fun reset(): ResetResult = demo.reset()
 }
