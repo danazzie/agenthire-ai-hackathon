@@ -21,6 +21,15 @@ spring:
         # The outbox poller and the sweeper each get a thread: one stuck task cannot stop the other.
         size: 4
 
+# The client API only: PayPal's webhook and the payer's return pages are not for API clients.
+springdoc:
+  api-docs:
+    # 3.0 imports cleanly into Postman and APIMatic.
+    version: openapi_3_0
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  writer-with-order-by-keys: true
+
 server:
   # Render injects PORT. Locally 8088, because 8080 is commonly taken.
   port: ${PORT:8088}

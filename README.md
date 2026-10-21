@@ -93,6 +93,17 @@ cd web && npm test          # the screen's model code
 
 The database enforces the rules as well as the code. The ledger is insert-only, and holds must match their contract and its verifier hash. Illegal state transitions, and changes to locked terms or a final verdict, are rejected by triggers.
 
+## API
+
+The control plane describes itself with springdoc. While it runs:
+
+- the document is at http://localhost:8088/v3/api-docs
+- a browsable Swagger UI is at http://localhost:8088/swagger-ui.html
+
+The same document is committed as [docs/api/openapi.json](docs/api/openapi.json) (OpenAPI 3.0). Postman and APIMatic import that file directly. A test fails if it drifts from the code.
+
+Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `maya` the seller. Every refusal is an RFC 9457 problem document with a stable `code`, for example `mandate_exceeded`, `not_funded` or `no_credentials`.
+
 ## Deploy on Render
 
 [render.yaml](render.yaml) is a Blueprint for three services: the API (built from the [Dockerfile](Dockerfile), with Deno), the screen as a static site, and Postgres.

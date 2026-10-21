@@ -1,5 +1,6 @@
 package mutualstake.demo
 
+import io.swagger.v3.oas.annotations.tags.Tag
 import mutualstake.api.ApiException
 import mutualstake.api.SessionView
 import mutualstake.contract.ContractRepository
@@ -63,6 +64,7 @@ class DemoReset(
 
 @RestController
 @RequestMapping("/api/demo")
+@Tag(name = "Demo", description = "Operator controls for a clean judge run (US-31).")
 class DemoController(private val demo: DemoReset) {
     /** US-31. Drafts stay in the archived session, where they can no longer lock terms. */
     @PostMapping("/reset")

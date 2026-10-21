@@ -1,0 +1,1499 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "description" : "Bilateral stakes on PayPal for agent-to-agent work. The buyer's fee and the seller's bond are\nauthorized, never captured up front. A compiled test, whose SHA-256 is on both PayPal orders as\n`custom_id`, decides which one is captured and which one is voided.\n\nThere is deliberately no endpoint that captures, voids, refunds or pays: money moves only on\nPayPal's confirmations and the verifier's verdict, and the first capture of a session waits for\na human to confirm it. Mutations name the acting party in the `X-Party` header (`alex` is the\nbuyer, `maya` the seller); v1 has no login. Refusals are RFC 9457 problem details with a\nstable `code`, such as `mandate_exceeded` or `no_credentials`.",
+    "license" : {
+      "name" : "MIT",
+      "url" : "https://opensource.org/licenses/MIT"
+    },
+    "title" : "Mutual Stake API",
+    "version" : "0.1.0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8088",
+    "description" : "This control plane"
+  } ],
+  "tags" : [ {
+    "description" : "Operator controls for a clean judge run (US-31).",
+    "name" : "Demo"
+  }, {
+    "description" : "The buyer's and the seller's Claude agents. Without ANTHROPIC_API_KEY these answer no_credentials.",
+    "name" : "Agents"
+  }, {
+    "description" : "Compile a test, negotiate terms, fund both holds, deliver, confirm the first capture.",
+    "name" : "Deals"
+  } ],
+  "paths" : {
+    "/api/agents/contracts/{id}/deliver" : {
+      "post" : {
+        "operationId" : "agentDeliver",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeliverRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "Accepted"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Agents" ]
+      }
+    },
+    "/api/agents/jobs" : {
+      "post" : {
+        "operationId" : "start",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StartRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "Created"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Agents" ]
+      }
+    },
+    "/api/agents/jobs/draft" : {
+      "post" : {
+        "operationId" : "draft",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DraftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobDraftView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Agents" ]
+      }
+    },
+    "/api/contracts" : {
+      "get" : {
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ContractView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      },
+      "post" : {
+        "operationId" : "open",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Party",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OpenContractRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "Created"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/contracts/{id}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/contracts/{id}/cancel" : {
+      "post" : {
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Party",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/contracts/{id}/confirm" : {
+      "post" : {
+        "operationId" : "confirm",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/contracts/{id}/deliveries" : {
+      "post" : {
+        "operationId" : "deliver",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Party",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TextRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "Created"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/contracts/{id}/offers" : {
+      "post" : {
+        "operationId" : "offer",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Party",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OfferRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/contracts/{id}/paypal-calls" : {
+      "get" : {
+        "operationId" : "paypalCalls",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "reads",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "object"
+                    }
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/demo/reset" : {
+      "post" : {
+        "operationId" : "reset",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResetResult"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Demo" ]
+      }
+    },
+    "/api/holds/{id}/check" : {
+      "post" : {
+        "operationId" : "check",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "object"
+                  }
+                }
+              }
+            },
+            "description" : "Accepted"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/status" : {
+      "get" : {
+        "operationId" : "status",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StatusView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/verifiers/compile" : {
+      "post" : {
+        "operationId" : "compile",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CompileRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerifierView"
+                }
+              }
+            },
+            "description" : "Created"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/verifiers/{id}" : {
+      "get" : {
+        "operationId" : "verifier",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerifierView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    },
+    "/api/verifiers/{id}/dry-run" : {
+      "post" : {
+        "operationId" : "dryRun",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TextRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DryRunView"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "tags" : [ "Deals" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "CheckResult" : {
+        "required" : [ "detail", "name", "passed" ],
+        "type" : "object",
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "evidence" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "expected" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "passed" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "CompileRequest" : {
+        "required" : [ "jobText" ],
+        "type" : "object",
+        "properties" : {
+          "jobText" : {
+            "type" : "string"
+          },
+          "test" : {
+            "nullable" : true,
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/JsonNode"
+            } ]
+          }
+        }
+      },
+      "ContractView" : {
+        "required" : [ "awaitingConfirmation", "buyer", "createdAt", "currency", "feeCapMinor", "holds", "id", "inFlight", "jobText", "ledger", "needsAttention", "offers", "seller", "sellerType", "sessionId", "state", "transitions", "updatedAt" ],
+        "type" : "object",
+        "properties" : {
+          "attentionReason" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "awaitingConfirmation" : {
+            "type" : "boolean"
+          },
+          "bondMinor" : {
+            "type" : "integer",
+            "format" : "int64",
+            "nullable" : true
+          },
+          "buyer" : {
+            "$ref" : "#/components/schemas/PartyView"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "deadlineAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "delivery" : {
+            "nullable" : true,
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/DeliveryView"
+            } ]
+          },
+          "feeCapMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "feeMinor" : {
+            "type" : "integer",
+            "format" : "int64",
+            "nullable" : true
+          },
+          "holds" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HoldView"
+            }
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "inFlight" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InFlightView"
+            }
+          },
+          "jobText" : {
+            "type" : "string"
+          },
+          "ledger" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LedgerView"
+            }
+          },
+          "needsAttention" : {
+            "type" : "boolean"
+          },
+          "offers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/OfferView"
+            }
+          },
+          "outcome" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "seller" : {
+            "$ref" : "#/components/schemas/PartyView"
+          },
+          "sellerType" : {
+            "type" : "string",
+            "enum" : [ "AGENT", "HUMAN" ]
+          },
+          "sentence" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "sessionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "settlementConfirmedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "settlementPlannedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "termsDocument" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "termsHash" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "transitions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TransitionView"
+            }
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "verifier" : {
+            "nullable" : true,
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/VerifierView"
+            } ]
+          }
+        }
+      },
+      "DeliverRequest" : {
+        "required" : [ "mode" ],
+        "type" : "object",
+        "properties" : {
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "AGENT", "SCRIPTED_JUNK" ]
+          }
+        }
+      },
+      "DeliveryView" : {
+        "required" : [ "attempts", "checks", "id", "injectionFlags", "needsAttention", "payloadSha256", "submittedAt", "text" ],
+        "type" : "object",
+        "properties" : {
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "attentionReason" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "checks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CheckResult"
+            }
+          },
+          "failingCheck" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "injectionFlags" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "needsAttention" : {
+            "type" : "boolean"
+          },
+          "payloadSha256" : {
+            "type" : "string"
+          },
+          "run" : {
+            "nullable" : true,
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/RunView"
+            } ]
+          },
+          "submittedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "summary" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "verdict" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "verifiedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          }
+        }
+      },
+      "DraftRequest" : {
+        "required" : [ "sentence" ],
+        "type" : "object",
+        "properties" : {
+          "sentence" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DryRunView" : {
+        "required" : [ "checks", "durationMs", "harnessSha256", "injectionFlags", "outcome", "runtime", "sourceSha256" ],
+        "type" : "object",
+        "properties" : {
+          "checks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CheckResult"
+            }
+          },
+          "durationMs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "error" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "failingCheck" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "harnessSha256" : {
+            "type" : "string"
+          },
+          "injectionFlags" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "PASS", "FAIL", "ERROR" ]
+          },
+          "runtime" : {
+            "type" : "string"
+          },
+          "sourceSha256" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string",
+            "nullable" : true
+          }
+        }
+      },
+      "HoldView" : {
+        "required" : [ "amountMinor", "caption", "customId", "id", "jar", "needsAttention", "payer", "side", "state" ],
+        "type" : "object",
+        "properties" : {
+          "amountMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "approveUrl" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "attentionReason" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "authorizationExpiresAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "authorizationId" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "caption" : {
+            "type" : "string"
+          },
+          "captureId" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "capturedMinor" : {
+            "type" : "integer",
+            "format" : "int64",
+            "nullable" : true
+          },
+          "customId" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jar" : {
+            "type" : "string",
+            "enum" : [ "EMPTY", "HELD", "RELEASED", "CAPTURED", "PAID", "COMPENSATION" ]
+          },
+          "needsAttention" : {
+            "type" : "boolean"
+          },
+          "payer" : {
+            "type" : "string"
+          },
+          "payoutBatchId" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "payoutItemId" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "paypalOrderId" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "side" : {
+            "type" : "string",
+            "enum" : [ "BUYER_FEE", "SELLER_BOND" ]
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "ORDER_CREATED", "APPROVED", "HELD", "VOID_REQUESTED", "VOIDED", "CAPTURE_REQUESTED", "CAPTURED", "PAYOUT_REQUESTED", "PAID_OUT", "ABANDONED" ]
+          }
+        }
+      },
+      "InFlightView" : {
+        "required" : [ "attempts", "label", "step" ],
+        "type" : "object",
+        "properties" : {
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "lastError" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "step" : {
+            "type" : "string"
+          }
+        }
+      },
+      "JobDraftView" : {
+        "required" : [ "deadlineAt", "feeCapMinor", "jobText", "sentence", "verifier" ],
+        "type" : "object",
+        "properties" : {
+          "deadlineAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "feeCapMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "jobText" : {
+            "type" : "string"
+          },
+          "sentence" : {
+            "type" : "string"
+          },
+          "verifier" : {
+            "$ref" : "#/components/schemas/VerifierView"
+          }
+        }
+      },
+      "JsonNode" : {
+        "type" : "object"
+      },
+      "LedgerView" : {
+        "required" : [ "amountMinor", "counterparty", "direction", "event", "occurredAt", "paypalRef" ],
+        "type" : "object",
+        "properties" : {
+          "amountMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "counterparty" : {
+            "type" : "string"
+          },
+          "direction" : {
+            "type" : "string"
+          },
+          "event" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "paypalRef" : {
+            "type" : "string"
+          }
+        }
+      },
+      "OfferRequest" : {
+        "required" : [ "bondMinor", "deadlineAt", "feeMinor", "kind", "verifierId" ],
+        "type" : "object",
+        "properties" : {
+          "bondMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "deadlineAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "feeMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "PROPOSE", "ACCEPT" ]
+          },
+          "note" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "verifierId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "OfferView" : {
+        "required" : [ "bondMinor", "createdAt", "deadlineAt", "feeMinor", "id", "kind", "party", "verifierId" ],
+        "type" : "object",
+        "properties" : {
+          "bondMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deadlineAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "feeMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "PROPOSE", "ACCEPT" ]
+          },
+          "note" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "party" : {
+            "type" : "string"
+          },
+          "verifierId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "OpenContractRequest" : {
+        "required" : [ "feeCapMinor", "jobText", "seller", "sellerType" ],
+        "type" : "object",
+        "properties" : {
+          "feeCapMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "jobText" : {
+            "type" : "string"
+          },
+          "seller" : {
+            "type" : "string"
+          },
+          "sellerType" : {
+            "type" : "string",
+            "enum" : [ "AGENT", "HUMAN" ]
+          }
+        }
+      },
+      "PartyView" : {
+        "required" : [ "displayName", "handle" ],
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "handle" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Problem" : {
+        "type" : "object",
+        "description" : "RFC 9457 problem details. `code` is stable; `detail` is one human-readable line.",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "example" : "mandate_exceeded"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "status", "title" ]
+      },
+      "ResetResult" : {
+        "required" : [ "archivedSessionId", "cancelled", "session" ],
+        "type" : "object",
+        "properties" : {
+          "archivedSessionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "cancelled" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "session" : {
+            "$ref" : "#/components/schemas/SessionView"
+          }
+        }
+      },
+      "RunView" : {
+        "required" : [ "durationMs", "harnessSha256", "id", "inputSha256", "outcome", "ranAt", "runtime", "sourceSha256" ],
+        "type" : "object",
+        "properties" : {
+          "durationMs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "error" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "harnessSha256" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "inputSha256" : {
+            "type" : "string"
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "PASS", "FAIL", "ERROR" ]
+          },
+          "ranAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "runtime" : {
+            "type" : "string"
+          },
+          "sourceSha256" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SessionView" : {
+        "required" : [ "capMinor", "id", "maxJobs", "startedAt" ],
+        "type" : "object",
+        "properties" : {
+          "capMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "firstCaptureConfirmedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "maxJobs" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "StartRequest" : {
+        "required" : [ "deadlineAt", "feeCapMinor", "jobText", "sentence", "verifierId" ],
+        "type" : "object",
+        "properties" : {
+          "deadlineAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "feeCapMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "jobText" : {
+            "type" : "string"
+          },
+          "sentence" : {
+            "type" : "string"
+          },
+          "verifierId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "StatusView" : {
+        "required" : [ "agentsConfigured", "parties", "paypalConfigured", "session", "webhooksConfigured" ],
+        "type" : "object",
+        "properties" : {
+          "agentsConfigured" : {
+            "type" : "boolean"
+          },
+          "parties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PartyView"
+            }
+          },
+          "paypalConfigured" : {
+            "type" : "boolean"
+          },
+          "session" : {
+            "$ref" : "#/components/schemas/SessionView"
+          },
+          "webhooksConfigured" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "TextRequest" : {
+        "required" : [ "text" ],
+        "type" : "object",
+        "properties" : {
+          "text" : {
+            "type" : "string"
+          }
+        }
+      },
+      "TransitionView" : {
+        "required" : [ "cause", "from", "occurredAt", "to" ],
+        "type" : "object",
+        "properties" : {
+          "cause" : {
+            "type" : "string"
+          },
+          "from" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "to" : {
+            "type" : "string"
+          }
+        }
+      },
+      "VerifierView" : {
+        "required" : [ "compiledAt", "id", "language", "sha256", "source" ],
+        "type" : "object",
+        "properties" : {
+          "compiledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "language" : {
+            "type" : "string"
+          },
+          "sha256" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "spec" : {
+            "type" : "string",
+            "nullable" : true
+          }
+        }
+      }
+    }
+  }
+}

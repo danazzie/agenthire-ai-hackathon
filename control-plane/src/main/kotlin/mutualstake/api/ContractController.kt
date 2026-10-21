@@ -1,6 +1,7 @@
 package mutualstake.api
 
 import com.fasterxml.jackson.databind.JsonNode
+import io.swagger.v3.oas.annotations.tags.Tag
 import mutualstake.agents.Claude
 import mutualstake.config.MutualStakeProperties
 import mutualstake.contract.ContractRepository
@@ -22,12 +23,12 @@ import mutualstake.settlement.SettlementService
 import mutualstake.verifier.VerifierRepository
 import mutualstake.verifier.VerifierService
 import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -59,6 +60,7 @@ data class OfferRequest(
  */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Deals", description = "Compile a test, negotiate terms, fund both holds, deliver, confirm the first capture.")
 class ContractController(
     private val negotiation: NegotiationService,
     private val funding: FundingService,
@@ -82,8 +84,8 @@ class ContractController(
 
     /** Compiles a structured test into a verifier and returns its source and SHA-256 (US-1, US-9). */
     @PostMapping("/verifiers/compile")
-    fun compile(@RequestBody request: CompileRequest): ResponseEntity<VerifierView> =
-        ResponseEntity.status(HttpStatus.CREATED).body(VerifierView(verifierService.compile(request.jobText, request.test)))
+    @ResponseStatus(HttpStatus.CREATED)
+    fun compile(@RequestBody request: CompileRequest): VerifierView = VerifierView(verifierService.compile(request.jobText, request.test))
 
     /** Runs a verifier on any text with nothing at stake: the seller's agent checks its work first. */
     @PostMapping("/verifiers/{id}/dry-run")
@@ -93,9 +95,10 @@ class ContractController(
     fun verifier(@PathVariable id: UUID) = VerifierView(verifiers.byId(id) ?: throw ApiException.notFound("verifier $id"))
 
     @PostMapping("/contracts")
-    fun open(@RequestHeader(PARTY_HEADER) handle: String, @RequestBody request: OpenContractRequest): ResponseEntity<ContractView> {
+    @ResponseStatus(HttpStatus.CREATED)
+    fun open(@RequestHeader(PARTY_HEADER) handle: String, @RequestBody request: OpenContractRequest): ContractView {
         val contract = negotiation.open(party(handle), request.seller, request.jobText, Money(request.feeCapMinor), request.sellerType)
-        return ResponseEntity.status(HttpStatus.CREATED).body(views.of(contract))
+        return views.of(contract)
     }
 
     @GetMapping("/contracts")
@@ -114,9 +117,10 @@ class ContractController(
 
     /** The seller delivers. The text is data: the agreed verifier judges it; nothing in it is obeyed (US-20). */
     @PostMapping("/contracts/{id}/deliveries")
-    fun deliver(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID, @RequestBody request: TextRequest): ResponseEntity<ContractView> {
+    @ResponseStatus(HttpStatus.CREATED)
+    fun deliver(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID, @RequestBody request: TextRequest): ContractView {
         deliveryService.submit(id, party(handle), request.text)
-        return ResponseEntity.status(HttpStatus.CREATED).body(views.of(contracts.find(id)!!))
+        return views.of(contracts.find(id)!!)
     }
 
     /**
@@ -147,10 +151,11 @@ class ContractController(
 
     /** A nudge after the payer returns from PayPal. It only asks PayPal again; it never sets a state itself. */
     @PostMapping("/holds/{id}/check")
-    fun check(@PathVariable id: UUID): ResponseEntity<Map<String, Any>> {
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    fun check(@PathVariable id: UUID): Map<String, Any> {
         val hold = holds.find(id) ?: throw ApiException.notFound("hold $id")
         outbox.enqueue(hold.id, OutboxType.CHECK_ORDER)
-        return ResponseEntity.accepted().body(mapOf("hold" to hold.id, "queued" to "CHECK_ORDER"))
+        return mapOf("hold" to hold.id, "queued" to "CHECK_ORDER")
     }
 
     private fun party(handle: String): Party =
