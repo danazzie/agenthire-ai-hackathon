@@ -92,19 +92,31 @@ async function finish() {
     console.log(`${label}: both holds placed`);
   }
 
-  // Run 1: junk. The verdict is FAIL; this session's first capture waits for the human Confirm (US-16).
+  // Run 1: junk. The verdict is FAIL; this session's first capture waits for the operator's Confirm (US-16),
+  // which this driver presses on the operator's behalf.
   await api('POST', `/contracts/${state.fail}/deliveries`, { party: 'maya', body: { text: FAIL_TEXT } });
   const failed = await waitFor('run 1 verdict', () => get(state.fail), (c) => c.state !== 'DELIVERED', { seconds: 120 });
   console.log(`run 1: ${failed.state}: ${failed.delivery?.summary}; awaiting confirmation: ${failed.awaitingConfirmation}`);
   if (failed.awaitingConfirmation) {
     await api('POST', `/contracts/${state.fail}/confirm`);
-    console.log('run 1: first capture of the session confirmed (US-16)');
+    console.log("run 1: first capture of the session released by the operator's Confirm, pressed by this driver (US-16)");
   }
-  const settled1 = await waitFor('run 1 SETTLED', () => get(state.fail), (c) => c.state === 'SETTLED' || c.holds.some((h) => h.needsAttention), { seconds: 900 });
 
-  // Run 2: the 50-word blurb. PASS, and it settles on its own inside the confirmed session.
+  // Run 2: the 50-word blurb, delivered now rather than after run 1's payout lands: run 2's deadline is hard
+  // (past it, the deal expires and the bond is captured), run 1's payout is not. PASS settles on its own
+  // inside the confirmed session.
   await api('POST', `/contracts/${state.pass}/deliveries`, { party: 'maya', body: { text: PASS_TEXT } });
-  const settled2 = await waitFor('run 2 SETTLED', () => get(state.pass), (c) => c.state === 'SETTLED' || c.holds.some((h) => h.needsAttention), { seconds: 900 });
+  const passed = await waitFor('run 2 verdict', () => get(state.pass), (c) => c.state !== 'DELIVERED', { seconds: 120 });
+  console.log(`run 2: ${passed.state}: ${passed.delivery?.summary}; awaiting confirmation: ${passed.awaitingConfirmation}`);
+
+  // Both settle in parallel. A slow sandbox payout is reported as it stands, not allowed to sink the other run.
+  const done = (c) => c.state === 'SETTLED' || c.holds.some((h) => h.needsAttention);
+  const settle = (label, id) =>
+    waitFor(`${label} SETTLED`, () => get(id), done, { seconds: 1800 }).catch(async (e) => {
+      console.warn(`${label}: ${e.message}; reporting its state as it stands`);
+      return get(id);
+    });
+  const [settled1, settled2] = await Promise.all([settle('run 1', state.fail), settle('run 2', state.pass)]);
 
   const calls1 = await api('GET', `/contracts/${state.fail}/paypal-calls`);
   const calls2 = await api('GET', `/contracts/${state.pass}/paypal-calls`);
@@ -140,6 +152,8 @@ Transitions: ${c.transitions.map((t) => `${t.from}→${t.to}`).join(', ')}.
   writeFileSync(reportPath, `# Sandbox run: the same job, twice
 
 Run on ${new Date().toISOString()} against the PayPal sandbox. Verifier SHA-256 (\`custom_id\` on all four orders): \`${state.verifier.sha256}\`.
+
+The four holds were approved by hand in PayPal sandbox checkout. Everything after that was scripted by \`docs/demo/sandbox-run.mjs\`, including the session's one Confirm (US-16), which the driver pressed on the operator's behalf ${run1.settlementConfirmedAt ? `at ${run1.settlementConfirmedAt} for run 1` : '(run 1 records no Confirm)'}. Run 2 ${run2.settlementConfirmedAt ? `also records a Confirm at ${run2.settlementConfirmedAt}` : 'settled inside the confirmed session without one'}.
 
 ${section('Run 1: junk delivery, FAIL', run1, calls1)}
 ${section('Run 2: the 50-word blurb, PASS', run2, calls2)}`);
