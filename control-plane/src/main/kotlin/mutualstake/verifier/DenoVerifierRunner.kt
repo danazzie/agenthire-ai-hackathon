@@ -112,7 +112,8 @@ class DenoVerifierRunner(private val props: MutualStakeProperties, private val m
             if (!c.path("name").isTextual || !c.path("passed").isBoolean || !c.path("detail").isTextual) {
                 return error("verifier_malformed: every check needs a name, passed and detail", trace)
             }
-            checks += CheckResult(c.path("name").asText().take(100), c.path("passed").asBoolean(), c.path("detail").asText().take(300))
+            fun optional(field: String) = c.path(field).takeIf { it.isTextual }?.asText()?.take(300)
+            checks += CheckResult(c.path("name").asText().take(100), c.path("passed").asBoolean(), c.path("detail").asText().take(300), optional("expected"), optional("evidence"))
         }
         if (pass.asBoolean() != checks.all { it.passed }) return error("verifier_malformed: pass disagrees with its own checks", trace)
         val failed = checks.filterNot { it.passed }
@@ -120,7 +121,7 @@ class DenoVerifierRunner(private val props: MutualStakeProperties, private val m
             outcome = if (failed.isEmpty()) RunOutcome.PASS else RunOutcome.FAIL,
             checks = checks,
             failingCheck = failed.firstOrNull()?.name,
-            summary = (if (failed.isEmpty()) checks else failed).joinToString("; ") { it.detail },
+            summary = verdictSentence(checks),
             error = null,
             trace = trace,
             sourceSha256 = sourceSha,

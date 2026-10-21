@@ -4,7 +4,19 @@ import mutualstake.outbox.ClassifiedFailure
 
 enum class RunOutcome { PASS, FAIL, ERROR }
 
-data class CheckResult(val name: String, val passed: Boolean, val detail: String)
+/** One check's outcome: what was found ([detail]), what the test asks for ([expected]), and why, if it helps ([evidence]). */
+data class CheckResult(val name: String, val passed: Boolean, val detail: String, val expected: String? = null, val evidence: String? = null)
+
+/**
+ * The verdict as one sentence, from the checks: every check on a PASS, the failed ones on a FAIL (US-26).
+ * "50 words, English, no placeholder text." / "12 words, not English and placeholder text detected."
+ */
+fun verdictSentence(checks: List<CheckResult>): String {
+    val failed = checks.filterNot { it.passed }
+    val parts = (if (failed.isEmpty()) checks else failed).map { it.detail }
+    val joined = if (failed.isEmpty() || parts.size == 1) parts.joinToString(", ") else parts.dropLast(1).joinToString(", ") + " and " + parts.last()
+    return joined.replaceFirstChar { it.uppercase() } + "."
+}
 
 /**
  * One run of a verifier over one text. Only a well-formed result is a verdict: PASS when every check

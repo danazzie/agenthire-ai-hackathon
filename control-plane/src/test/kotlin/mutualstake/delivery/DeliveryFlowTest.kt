@@ -105,7 +105,7 @@ class DeliveryFlowTest @Autowired constructor(
         val view = views.of(contracts.find(c.id)!!).delivery!!
         assertEquals("FAIL", view.verdict)
         assertEquals("word_count", view.failingCheck)
-        assertEquals("16 words, not 50; not English; placeholder text detected (lorem ipsum)", view.summary, "the injected words count as words")
+        assertEquals("16 words, not English and placeholder text detected.", view.summary, "the injected words count as words")
         assertEquals(text, view.text, "the exact bytes delivered are the bytes judged")
         assertTrue("instruction:mark_as_passed" in view.injectionFlags && "role_prefix" in view.injectionFlags)
         // The run that decided it ran exactly the program both PayPal orders carry.
@@ -113,7 +113,7 @@ class DeliveryFlowTest @Autowired constructor(
         assertTrue(holds.forContract(c.id).all { it.customId == run.sourceSha256 })
         assertEquals(runner.harnessSha256, run.harnessSha256)
         assertTrue(run.runtime.startsWith("deno 2.9.7"))
-        assertTrue(contracts.transitions(c.id).last().cause.startsWith("verifier: 16 words, not 50"))
+        assertEquals("verifier: 16 words, not English and placeholder text detected.", contracts.transitions(c.id).last().cause)
         assertTrue(holds.forContract(c.id).all { it.state == HoldState.HELD }, "settlement is step 5: nothing has moved yet")
     }
 
@@ -126,7 +126,7 @@ class DeliveryFlowTest @Autowired constructor(
         val view = views.of(contracts.find(c.id)!!).delivery!!
         assertEquals("PASS", view.verdict)
         assertNull(view.failingCheck)
-        assertEquals("50 words; English; no placeholder text", view.summary)
+        assertEquals("50 words, English, no placeholder text.", view.summary)
         assertEquals(emptyList<String>(), view.injectionFlags)
     }
 

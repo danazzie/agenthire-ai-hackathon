@@ -38,7 +38,8 @@ const ms = (() => {
   };
 
   const plural = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
-  const check = (name, passed, detail) => ({ name, passed, detail });
+  // detail: what was found, worded to read in a sentence. expected: what the test asks for. evidence: why, when it helps.
+  const check = (name, passed, detail, expected, evidence) => ({ name, passed, detail, expected, evidence: evidence ?? null });
 
   return { words, isEnglish, placeholder, plural, check };
 })();

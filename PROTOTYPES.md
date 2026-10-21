@@ -71,8 +71,8 @@ Jar states: **Empty** · **Held** · **Paid** · **Released** · **Compensation*
 
 **Verdict**
 
-- Pass: 50 words, English, not placeholder.
-- Fail: 12 words and placeholder text detected.
+- Pass: 50 words, English, no placeholder text.
+- Fail: 12 words, not English and placeholder text detected.
 
 **Settle (PayPal)**
 

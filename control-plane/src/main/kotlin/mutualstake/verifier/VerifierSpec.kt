@@ -8,6 +8,9 @@ class UncompilableTestException(message: String) : RuntimeException(message)
 /**
  * One check in a structured test. The buyer's agent chooses checks from this fixed vocabulary; it never
  * writes verifier code, and nothing a delivery says can add a check.
+ *
+ * Each check reports what it found (detail, worded to read inside the verdict sentence), what the test
+ * asks for (expected), and sometimes why (evidence).
  */
 sealed interface CheckSpec {
     /** Canonical JSON: fixed key order, so the same test always compiles to the same bytes. */
@@ -23,17 +26,16 @@ data class WordCount(val equals: Int?, val min: Int?, val max: Int?) : CheckSpec
     ).joinToString(",", "{", "}")
 
     override fun code(): String {
-        val (passes, failure) = when {
-            equals != null -> "n === $equals" to "`\${ms.plural(n, \"word\")}, not $equals`"
-            min != null && max != null -> "n >= $min && n <= $max" to "`\${ms.plural(n, \"word\")}, not between $min and $max`"
-            min != null -> "n >= $min" to "`\${ms.plural(n, \"word\")}, fewer than $min`"
-            else -> "n <= $max" to "`\${ms.plural(n, \"word\")}, more than $max`"
+        val (passes, expected) = when {
+            equals != null -> "n === $equals" to "exactly $equals words"
+            min != null && max != null -> "n >= $min && n <= $max" to "$min to $max words"
+            min != null -> "n >= $min" to "at least $min words"
+            else -> "n <= $max" to "at most $max words"
         }
         return """
         |  {
         |    const n = ms.words(text).length;
-        |    const ok = $passes;
-        |    checks.push(ms.check("word_count", ok, ok ? ms.plural(n, "word") : $failure));
+        |    checks.push(ms.check("word_count", $passes, ms.plural(n, "word"), ${js(expected)}));
         |  }
         |""".trimMargin()
     }
@@ -45,7 +47,7 @@ data class Language(val equals: String) : CheckSpec {
     override fun code() = """
         |  {
         |    const ok = ms.isEnglish(text);
-        |    checks.push(ms.check("language", ok, ok ? "English" : "not English"));
+        |    checks.push(ms.check("language", ok, ok ? "English" : "not English", "English"));
         |  }
         |""".trimMargin()
 }
@@ -56,7 +58,7 @@ data object NotPlaceholder : CheckSpec {
     override fun code() = """
         |  {
         |    const found = ms.placeholder(text);
-        |    checks.push(ms.check("not_placeholder", found === null, found === null ? "no placeholder text" : `placeholder text detected (${'$'}{found})`));
+        |    checks.push(ms.check("not_placeholder", found === null, found === null ? "no placeholder text" : "placeholder text detected", "no placeholder text", found));
         |  }
         |""".trimMargin()
 }
@@ -68,7 +70,7 @@ data class Contains(val phrase: String) : CheckSpec {
         |  {
         |    const phrase = ${js(phrase)};
         |    const ok = text.toLowerCase().includes(phrase.toLowerCase());
-        |    checks.push(ms.check("contains", ok, ok ? `mentions "${'$'}{phrase}"` : `does not mention "${'$'}{phrase}"`));
+        |    checks.push(ms.check("contains", ok, ok ? `mentions "${'$'}{phrase}"` : `does not mention "${'$'}{phrase}"`, `mentions "${'$'}{phrase}"`));
         |  }
         |""".trimMargin()
 }
@@ -80,7 +82,7 @@ data class NotContains(val phrase: String) : CheckSpec {
         |  {
         |    const phrase = ${js(phrase)};
         |    const ok = !text.toLowerCase().includes(phrase.toLowerCase());
-        |    checks.push(ms.check("not_contains", ok, ok ? `does not mention "${'$'}{phrase}"` : `mentions "${'$'}{phrase}"`));
+        |    checks.push(ms.check("not_contains", ok, ok ? `does not mention "${'$'}{phrase}"` : `mentions "${'$'}{phrase}"`, `does not mention "${'$'}{phrase}"`));
         |  }
         |""".trimMargin()
 }
@@ -90,16 +92,15 @@ data class CharCount(val min: Int?, val max: Int?) : CheckSpec {
 
     override fun code(): String {
         val passes = listOfNotNull(min?.let { "n >= $it" }, max?.let { "n <= $it" }).joinToString(" && ")
-        val failure = when {
-            min != null && max != null -> "`\${n} characters, not between $min and $max`"
-            min != null -> "`\${n} characters, fewer than $min`"
-            else -> "`\${n} characters, more than $max`"
+        val expected = when {
+            min != null && max != null -> "$min to $max characters"
+            min != null -> "at least $min characters"
+            else -> "at most $max characters"
         }
         return """
         |  {
         |    const n = Array.from(text.normalize("NFC")).length;
-        |    const ok = $passes;
-        |    checks.push(ms.check("char_count", ok, ok ? `${'$'}{n} characters` : $failure));
+        |    checks.push(ms.check("char_count", $passes, `${'$'}{n} characters`, ${js(expected)}));
         |  }
         |""".trimMargin()
     }

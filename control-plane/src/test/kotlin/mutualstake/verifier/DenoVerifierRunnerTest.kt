@@ -47,7 +47,7 @@ class DenoVerifierRunnerTest {
         val run = deno.run(us1, DemoTexts.pass)
         assertEquals(RunOutcome.PASS, run.outcome, run.summary)
         assertEquals(listOf("word_count" to "50 words", "language" to "English", "not_placeholder" to "no placeholder text"), run.checks.map { it.name to it.detail })
-        assertEquals("50 words; English; no placeholder text", run.summary)
+        assertEquals("50 words, English, no placeholder text.", run.summary, "PROTOTYPES' Pass line")
     }
 
     @Test
@@ -55,7 +55,9 @@ class DenoVerifierRunnerTest {
         val run = deno.run(us1, DemoTexts.fail)
         assertEquals(RunOutcome.FAIL, run.outcome)
         assertEquals("word_count", run.failingCheck)
-        assertEquals("12 words, not 50; not English; placeholder text detected (lorem ipsum)", run.summary)
+        assertEquals("12 words, not English and placeholder text detected.", run.summary, "PROTOTYPES' Fail line")
+        assertEquals(listOf("exactly 50 words", "English", "no placeholder text"), run.checks.map { it.expected })
+        assertEquals("lorem ipsum", run.checks.single { it.name == "not_placeholder" }.evidence)
     }
 
     @Test
@@ -132,7 +134,7 @@ class DenoVerifierRunnerTest {
         )
         val run = deno.run(sneaky, "text")
         assertEquals(RunOutcome.FAIL, run.outcome)
-        assertEquals("what the code decided", run.summary)
+        assertEquals("What the code decided.", run.summary)
         assertTrue(run.trace.single().startsWith("MS-RESULT:x:"), "captured as a trace, never printed")
     }
 
