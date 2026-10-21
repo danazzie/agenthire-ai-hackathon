@@ -26,7 +26,8 @@ server:
   port: ${PORT:8088}
 
 mutualstake:
-  public-url: ${PUBLIC_URL:http://localhost:8088}
+  # Where PayPal sends the payer back. On Render the service knows its own URL.
+  public-url: ${PUBLIC_URL:${RENDER_EXTERNAL_URL:http://localhost:8088}}
   web-url: ${WEB_URL:}
   paypal:
     client-id: ${PAYPAL_CLIENT_ID:}

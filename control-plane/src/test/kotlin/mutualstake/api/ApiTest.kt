@@ -25,6 +25,7 @@ import org.springframework.http.MediaType
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.options
 import org.springframework.test.web.servlet.post
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 import java.time.Duration
@@ -138,6 +139,22 @@ class ApiTest @Autowired constructor(
             status { isConflict() }
             jsonPath("$.code") { value("terms_locked") }
         }
+    }
+
+    @Test
+    fun `only the deployed screen's origin may call the API from a browser`() {
+        mvc.options("/api/contracts") {
+            header("Origin", "https://web.example")
+            header("Access-Control-Request-Method", "POST")
+            header("Access-Control-Request-Headers", "content-type,x-party")
+        }.andExpect {
+            status { isOk() }
+            header { string("Access-Control-Allow-Origin", "https://web.example") }
+        }
+        mvc.options("/api/contracts") {
+            header("Origin", "https://elsewhere.example")
+            header("Access-Control-Request-Method", "POST")
+        }.andExpect { status { isForbidden() } }
     }
 
     @Test
