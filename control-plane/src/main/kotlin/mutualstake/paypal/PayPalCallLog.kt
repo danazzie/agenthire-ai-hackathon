@@ -35,6 +35,22 @@ class PayPalCallLog(private val jdbc: JdbcClient) : PayPalCallRecorder {
             .param("name", call.errorName).param("issue", call.errorIssue).param("ms", call.durationMs).update()
     }
 
+    /** Every call for a deal's holds, oldest first: what a judge matches against the sandbox dashboard (US-22). */
+    fun forContract(contractId: UUID, includeReads: Boolean): List<Pair<String, PayPalCall>> =
+        jdbc.sql(
+            """
+            select h.side, c.* from paypal_call c join hold h on h.id = c.hold_id
+            where h.contract_id = :c and (:reads or c.method <> 'GET')
+            order by c.called_at, c.id
+            """,
+        ).param("c", contractId).param("reads", includeReads).query { rs, _ ->
+            rs.getString("side") to PayPalCall(
+                rs.getString("operation"), rs.getString("method"), rs.getString("path"), rs.getString("request_id"),
+                rs.getObject("http_status") as Int?, rs.getString("debug_id"), rs.getString("error_name"), rs.getString("error_issue"),
+                rs.getInt("duration_ms"),
+            )
+        }.list()
+
     fun forHold(holdId: UUID): List<PayPalCall> =
         jdbc.sql("select * from paypal_call where hold_id = :h order by called_at, id").param("h", holdId).query { rs, _ ->
             PayPalCall(

@@ -26,3 +26,4 @@ docs/spikes/.us4-state.json
 
 # Pinned tool downloads (Deno for the verifier sandbox)
 .tools/
+docs/demo/.sandbox-run-state.json

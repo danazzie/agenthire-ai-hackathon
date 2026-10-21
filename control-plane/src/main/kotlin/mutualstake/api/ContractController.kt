@@ -14,6 +14,7 @@ import mutualstake.outbox.OutboxRepository
 import mutualstake.outbox.OutboxType
 import mutualstake.party.Party
 import mutualstake.party.PartyRepository
+import mutualstake.paypal.PayPalCallLog
 import mutualstake.paypal.PayPalGateway
 import mutualstake.session.SessionService
 import mutualstake.settlement.SettlementService
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 import java.util.UUID
@@ -71,6 +73,7 @@ class ContractController(
     private val verifierService: VerifierService,
     private val deliveryService: DeliveryService,
     private val settlement: SettlementService,
+    private val callLog: PayPalCallLog,
 ) {
     @GetMapping("/status")
     fun status() = StatusView(paypal.configured, props.paypal.webhooksConfigured, parties.all().map(::PartyView), SessionView(sessions.current()))
@@ -120,6 +123,14 @@ class ContractController(
      */
     @PostMapping("/contracts/{id}/confirm")
     fun confirm(@PathVariable id: UUID): ContractView = views.of(settlement.confirm(id))
+
+    /** The PayPal calls behind a deal, each with its PayPal-Request-Id and debug id. Reads (polling) only on request. */
+    @GetMapping("/contracts/{id}/paypal-calls")
+    fun paypalCalls(@PathVariable id: UUID, @RequestParam(defaultValue = "false") reads: Boolean): List<Map<String, Any?>> =
+        callLog.forContract(id, reads).map { (side, c) ->
+            mapOf("side" to side, "operation" to c.operation, "method" to c.method, "path" to c.path, "requestId" to c.requestId,
+                "httpStatus" to c.httpStatus, "debugId" to c.debugId, "errorName" to c.errorName, "errorIssue" to c.errorIssue)
+        }
 
     @PostMapping("/contracts/{id}/cancel")
     fun cancel(@RequestHeader(PARTY_HEADER) handle: String, @PathVariable id: UUID): ContractView {
