@@ -80,7 +80,7 @@ async function finish() {
   const get = (id) => api('GET', `/contracts/${id}`);
   const held = (c) => c.state === 'BOTH_HELD' || c.holds.some((h) => h.needsAttention);
   for (const [label, id] of [['run 1', state.fail], ['run 2', state.pass]]) {
-    const c = await waitFor(`${label} BOTH_HELD`, () => get(id), held, { seconds: 1200 });
+    const c = await waitFor(`${label} BOTH_HELD`, () => get(id), held, { seconds: 7200 });
     if (c.state !== 'BOTH_HELD') throw new Error(`${label}: ${c.holds.map((h) => `${h.side} ${h.state} ${h.attentionReason ?? ''}`).join('; ')}`);
     console.log(`${label}: both holds placed`);
   }
