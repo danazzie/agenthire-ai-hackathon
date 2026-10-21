@@ -10,6 +10,16 @@ spring:
     password: ${DB_PASSWORD:mutualstake}
   flyway:
     locations: classpath:db/migration
+  http:
+    client:
+      # A PayPal call that never answers (a laptop sleeping mid-request did exactly this) must fail, not hang.
+      connect-timeout: 5s
+      read-timeout: 30s
+  task:
+    scheduling:
+      pool:
+        # The outbox poller and the sweeper each get a thread: one stuck task cannot stop the other.
+        size: 4
 
 server:
   # Render injects PORT. Locally 8088, because 8080 is commonly taken.

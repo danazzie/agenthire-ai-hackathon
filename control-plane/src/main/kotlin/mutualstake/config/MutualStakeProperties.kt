@@ -50,5 +50,7 @@ data class MutualStakeProperties(
         val sweepMs: Long = 3000,
         /** First polling interval for an unapproved order (the fallback when no webhook arrives); it then backs off. */
         val orderPollSeconds: Long = 4,
+        /** Hard limit on one outbox step (a PayPal call, a verifier run, an agent turn). Past it the step is retried. */
+        val handlerTimeoutSeconds: Long = 90,
     )
 }

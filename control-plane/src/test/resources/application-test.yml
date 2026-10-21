@@ -1,5 +1,10 @@
 # Tests drive the outbox poller and the sweeper by hand, use a fake PayPal, and never read real
 # credentials (the main config imports ../.env, so every value that matters is pinned here).
+spring:
+  http:
+    client:
+      read-timeout: 2s
+
 mutualstake:
   public-url: http://localhost:8088
   web-url: ""

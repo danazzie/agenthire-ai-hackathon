@@ -55,6 +55,8 @@ class FakePayPal(private val clock: Clock) : PayPalGateway {
 
     @Volatile override var configured: Boolean = true
     @Volatile var webhookVerdict: Boolean = true
+    /** Runs before PayPal answers an order create: block here to play a call that never returns. */
+    @Volatile var beforeCreate: () -> Unit = {}
     /** Runs after PayPal has placed a hold but before the caller sees the answer: for racing a cancel. */
     @Volatile var afterAuthorize: (orderId: String) -> Unit = {}
     /** Runs after PayPal has captured but before the caller sees it: throw here to lose the answer (US-17). */
@@ -78,6 +80,7 @@ class FakePayPal(private val clock: Clock) : PayPalGateway {
     fun reset() {
         configured = true
         webhookVerdict = true
+        beforeCreate = {}
         afterAuthorize = {}
         afterCapture = {}
         afterPayout = {}
@@ -105,6 +108,7 @@ class FakePayPal(private val clock: Clock) : PayPalGateway {
 
     override fun createOrder(request: CreateOrderRequest): PayPalOrder {
         if (!configured) throw PayPalException.noCredentials("create_order")
+        beforeCreate()
         requestIds += request.requestId
         val id = byRequestId.computeIfAbsent(request.requestId) {
             val orderId = "FAKE-ORDER-${counter.incrementAndGet()}"

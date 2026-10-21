@@ -1,9 +1,14 @@
 package mutualstake.outbox
 
+import mutualstake.config.MutualStakeProperties
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.time.Duration
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 interface OutboxHandler {
     val type: OutboxType
@@ -20,9 +25,17 @@ interface OutboxHandler {
  * the hold's PayPal-Request-Id, so PayPal answers with the original result instead of acting twice.
  */
 @Component
-class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHandler>) {
+class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHandler>, props: MutualStakeProperties) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val byType = handlers.associateBy { it.type }
+    private val workers = Executors.newCachedThreadPool { r -> Thread(r, "outbox-step").apply { isDaemon = true } }
+
+    /**
+     * No single step may stall the queue: past this limit it is abandoned and retried. Retrying is safe because
+     * every step is idempotent (same PayPal-Request-Id, state checks under row locks). Settable for tests.
+     */
+    @Volatile
+    var handlerTimeout: Duration = Duration.ofSeconds(props.scheduling.handlerTimeoutSeconds)
 
     @Scheduled(fixedDelayString = "\${mutualstake.scheduling.outbox-poll-ms:500}")
     fun tick() {
@@ -49,10 +62,16 @@ class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHa
 
     private fun run(event: OutboxEvent) {
         val handler = byType[event.type] ?: return outbox.markDead(event.id, "no handler for ${event.type}")
+        val step = workers.submit { handler.handle(event) }
         try {
-            handler.handle(event)
+            step.get(handlerTimeout.toMillis(), TimeUnit.MILLISECONDS)
             outbox.markPublished(event.id)
-        } catch (e: Exception) {
+        } catch (e: TimeoutException) {
+            step.cancel(true)
+            log.warn("outbox {} for {} took longer than {}; retrying", event.type, event.aggregateId, handlerTimeout)
+            fail(handler, event, "timeout: ${event.type} took longer than ${handlerTimeout.seconds} s", retryable = true, classified = null)
+        } catch (wrapped: ExecutionException) {
+            val e = wrapped.cause ?: wrapped
             val classified = e as? ClassifiedFailure
             if (classified == null) log.warn("outbox {} for {} failed (attempt {})", event.type, event.aggregateId, event.attempts, e)
             fail(handler, event, classified?.reason ?: "${e.javaClass.simpleName}: ${e.message}", classified?.retryable ?: true, classified)
