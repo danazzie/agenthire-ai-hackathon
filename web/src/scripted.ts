@@ -3,6 +3,10 @@
 import { api, type Contract } from './api.ts'
 
 export const US1_SENTENCE = '50-word coffee-shop blurb, max $2, by 18:00, no lorem ipsum'
+/** The PROTOTYPES pass blurb (50 words, English, no placeholder): the scripted delivery that passes the test. */
+export const SCRIPTED_PASS_TEXT =
+  'Beanhouse pours slow mornings into small cups. Local beans, oat milk on tap, a bench by the window that fits one laptop and two friends. Come for the cortado, stay for the quiet. Open seven to five, every single day, just two doors down from the old bookshop on Elm.'
+
 const US1_TEST = { checks: [{ type: 'word_count', equals: 50 }, { type: 'language', equals: 'en' }, { type: 'not_placeholder' }] }
 
 /** The next 18:00 here that is at least an hour away. */

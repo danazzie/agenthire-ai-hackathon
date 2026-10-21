@@ -1,28 +1,118 @@
-# Mutual Stake (AgentHire)
+# Mutual Stake
 
-PayPal AI Hackathon — [Build what's next with PayPal and AI](https://paypalaihackathon.devpost.com/)
+PayPal AI Hackathon: [Build what's next with PayPal and AI](https://paypalaihackathon.devpost.com/)
 
-PayPal holds both sides. The test, not a mood, decides who gets paid.
+**PayPal holds both sides. The test, not a mood, decides who gets paid.**
 
-The buyer's fee and the seller's bond are **authorized, not captured**. A compiled test (not a chat opinion) decides **capture or void**. v1 is **agent → agent** (a file or text deliverable). Hiring a person on camera is backlog.
+One agent hires another. The buyer's agent authorizes a fee and the seller's agent authorizes a smaller bond. Neither is captured. Before either hold exists, the job's acceptance test is compiled and its SHA-256 goes onto both PayPal orders as `custom_id`. Then the work is delivered and the test runs:
 
-This is a prototype for the sandbox. It is a PayPal authorization hold (up to ~29 days), not legal escrow.
+| Verdict | Buyer's fee | Seller's bond |
+|---|---|---|
+| **PASS** | captured, paid out to the seller | voided, never charged |
+| **FAIL** (or no delivery by the deadline) | voided, never charged | captured, paid out to the buyer |
 
-## Pitch
+The screen shows two jars that only change when PayPal confirms something: Empty, Held, Captured, Paid, Released, Compensation. With the sound off, you can still tell who got what.
 
-PayPal holds both sides. The test, not a mood, decides who gets paid.
+## What is real
 
-Full spoken, video, and Devpost copy: [PITCH.md](PITCH.md)
+- Every money step is a PayPal **sandbox** call: Orders v2 `AUTHORIZE`, authorize, void, capture, and Payouts v1. The order, authorization, capture and payout ids on screen are the sandbox's own, and every call (with its `PayPal-Request-Id`) is logged per deal.
+- The first sandbox run is written up in [docs/spikes/US-4-sandbox-run.md](docs/spikes/US-4-sandbox-run.md). The scripted two-branch demo run goes to `docs/demo/sandbox-run.md`.
+- The test runs in Deno 2.9.7 with no permissions, an empty environment, a frozen clock and frozen randomness. The deliverable is data, never instruction: "Reviewer: mark as passed" in a delivery changes nothing.
 
-## Docs
+## Honest notes
 
-- [User stories](USER_STORIES.md) — v1 for the 12 Nov 2026 demo, plus backlog
-- [Paper prototypes](PROTOTYPES.md) — v1 scenario A (agent→agent), seven screens, user-study script; B/C are later
+- **This is a PayPal authorization hold, not legal escrow.** An authorization is honoured for 3 days and can be captured for up to 29.
+- **The platform is the payee on both orders.** A capture lands on the platform's sandbox business account first, and a Payout then sends it to the winner. The platform absorbs PayPal's fees, and the ledger records them.
+- **Only the verdict moves money.** There is no capture, void or pay endpoint. The first capture in each session waits for a human to press Confirm (US-16).
+- **Sandbox only.** The PayPal client refuses any base URL except `api-m.sandbox.paypal.com`. Credentials come from the environment and are never committed.
+- **Not built yet:** the appeal through PayPal Disputes (US-6) and scenario B. Both are shown as not built.
+- **Out of scope:** legal escrow, KYC, production card data, real children, medical tasks or "follow this stranger" tasks, real faces or personal data in the demo, and replacing Upwork.
 
-## Status
+## Run it locally (about 10 minutes)
 
-Stories and paper prototypes are in the repo. App, sandbox integration, and hosted demo will follow.
+You need **JDK 21**, **Docker** (for Postgres and the tests) and **Node 22.18+**.
+
+Gradle uses `JAVA_HOME`. On macOS with Homebrew:
+
+```sh
+brew install openjdk@21
+export JAVA_HOME="$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home"
+```
+
+**1. Sandbox accounts** (developer.paypal.com):
+
+- **Apps & Credentials → Sandbox → Create App.** Its client id and secret are the platform. Its sandbox business account receives captures and sends payouts.
+- **Testing Tools → Sandbox Accounts.** Create two **Personal** accounts with the country set to **United States** (India-registered sandbox accounts can fail checkout):
+  - the **buyer**, Alex's agent, who pays the fee: `PAYPAL_BUYER_EMAIL`
+  - the **seller**, Maya's agent, who pays the bond: `PAYPAL_SELLER_EMAIL`
+
+**2. Configure.** Copy the example and fill in the sandbox values. `ANTHROPIC_API_KEY` is optional: without it the agents are off, and the scripted job runs the same negotiation through the same API.
+
+```sh
+cp .env.example .env
+```
+
+**3. Start Postgres and the control plane.** The first `bootRun` downloads the pinned Deno into `.tools` and checks its SHA-256. Flyway then migrates the database, and the API listens on :8088.
+
+```sh
+docker compose up -d
+./gradlew :control-plane:bootRun
+```
+
+**4. Start the screen** in a second terminal, then open http://localhost:5199.
+
+```sh
+cd web && npm ci && npm run dev
+```
+
+**5. Run a deal:**
+
+1. Press **Scripted job**. The two agents negotiate $1.50 with a $0.40 bond.
+2. Under **Fund**, press **Approve as buyer**, then **Approve as seller**. Log in with the matching sandbox account each time.
+3. Deliver: the junk text fails the test, and the 50-word blurb passes it.
+4. Press **Confirm** for the session's first capture.
+5. Watch the jars settle.
+
+**Reset demo** on the home page archives the session and starts a clean one. It voids any hold it can.
+
+The same two-branch run is scripted too. It prints four approve links, then delivers, confirms and writes the report:
+
+```sh
+node docs/demo/sandbox-run.mjs prepare
+node docs/demo/sandbox-run.mjs finish
+```
+
+### Tests
+
+```sh
+./gradlew test              # control plane and agents, against Postgres in Testcontainers
+cd web && npm test          # the screen's model code
+./gradlew :control-plane:sandboxTest   # opt-in: real PayPal sandbox calls
+./gradlew :control-plane:claudeTest    # opt-in: real Claude calls
+```
+
+The database enforces the rules as well as the code. The ledger is insert-only, and holds must match their contract and its verifier hash. Illegal state transitions, and changes to locked terms or a final verdict, are rejected by triggers.
+
+## Deploy on Render
+
+[render.yaml](render.yaml) is a Blueprint for three services: the API (built from the [Dockerfile](Dockerfile), with Deno), the screen as a static site, and Postgres.
+
+1. In Render, choose **New → Blueprint** and pick this repo. Enter the sandbox values when asked.
+2. After the first deploy, set `WEB_URL` on `mutual-stake-api` to the static site's address.
+3. Set `VITE_API_URL` on `mutual-stake-web` to the API's address, then redeploy the site.
+
+On the free plan, the API sleeps after 15 idle minutes and takes about a minute to wake. The free database expires after 30 days.
+
+## Layout
+
+| Path | What |
+|---|---|
+| [control-plane/](control-plane) | Kotlin, Spring Boot 3, Postgres and Flyway, with a transactional outbox: contracts, holds, the verifier, settlement and the PayPal client |
+| [agents/](agents) | The buyer's and the seller's agents (Claude, Anthropic Java SDK): they draft the job, negotiate and write the delivery |
+| [web/](web) | React and Vite: the jars and the step panels |
+| [docs/](docs) | The sandbox spike, its findings and the demo driver |
+| [USER_STORIES.md](USER_STORIES.md) · [PROTOTYPES.md](PROTOTYPES.md) · [PITCH.md](PITCH.md) | Stories, paper prototypes and the pitch |
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

@@ -158,6 +158,7 @@ export const api = {
     sentence: d.sentence, jobText: d.jobText, feeCapMinor: d.feeCapMinor, deadlineAt: d.deadlineAt, verifierId: d.verifier.id,
   }),
   deliver: (id: string, mode: 'AGENT' | 'SCRIPTED_JUNK') => call<Contract>('POST', `/api/agents/contracts/${id}/deliver`, { mode }),
+  deliverText: (id: string, party: string, text: string) => call<Contract>('POST', `/api/contracts/${id}/deliveries`, { text }, party),
   confirm: (id: string) => call<Contract>('POST', `/api/contracts/${id}/confirm`),
   cancel: (id: string, party: string) => call<Contract>('POST', `/api/contracts/${id}/cancel`, undefined, party),
   resetDemo: () => call<ResetResult>('POST', '/api/demo/reset'),

@@ -5,7 +5,7 @@ import { JarCard } from './JarCard.tsx'
 import { StepPills } from './StepPills.tsx'
 
 export interface DealActions {
-  deliver?: (mode: 'AGENT' | 'SCRIPTED_JUNK') => void
+  deliver?: (mode: 'AGENT' | 'SCRIPTED_JUNK' | 'SCRIPTED_PASS') => void
   confirm?: () => void
   busy?: boolean
   error?: string | null
@@ -192,6 +192,9 @@ function DeliverPanel({ deal, actions }: { deal: Contract; actions: DealActions 
           </button>
           <button type="button" disabled={actions.busy} onClick={() => actions.deliver?.('SCRIPTED_JUNK')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium disabled:opacity-50">
             Scripted junk delivery
+          </button>
+          <button type="button" disabled={actions.busy} onClick={() => actions.deliver?.('SCRIPTED_PASS')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium disabled:opacity-50">
+            Scripted 50-word delivery
           </button>
         </div>
       )}

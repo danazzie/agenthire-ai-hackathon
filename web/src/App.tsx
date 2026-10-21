@@ -3,6 +3,7 @@ import { api, ApiError, type Contract, type PayPalCall, type Status, type Verifi
 import { DealView } from './components/DealView.tsx'
 import { Gallery } from './components/Gallery.tsx'
 import { NewJob } from './components/NewJob.tsx'
+import { SCRIPTED_PASS_TEXT } from './scripted.ts'
 import { money, settled, stepOf } from './model.ts'
 
 /** A three-route app with no router library: /, /contracts/:id and /gallery (fixtures for visual checks). */
@@ -151,7 +152,7 @@ function Deal({ id }: { id: string }) {
       deal={deal}
       verifier={verifier}
       calls={calls}
-      actions={{ busy, error, deliver: (mode) => act(() => api.deliver(id, mode)), confirm: () => act(() => api.confirm(id)) }}
+      actions={{ busy, error, deliver: (mode) => act(() => (mode === 'SCRIPTED_PASS' ? api.deliverText(id, 'maya', SCRIPTED_PASS_TEXT) : api.deliver(id, mode))), confirm: () => act(() => api.confirm(id)) }}
     />
   )
 }
