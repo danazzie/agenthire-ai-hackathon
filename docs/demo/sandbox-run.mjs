@@ -40,7 +40,14 @@ async function waitFor(what, read, done, { seconds = 600, every = 2000 } = {}) {
   const until = Date.now() + seconds * 1000;
   let last;
   while (Date.now() < until) {
-    last = await read();
+    try {
+      last = await read();
+    } catch (e) {
+      // The control plane restarting is not a failed run: keep waiting. Any HTTP error still stops it.
+      if (!(e instanceof TypeError)) throw e;
+      await sleep(every);
+      continue;
+    }
     if (done(last)) return last;
     await sleep(every);
   }
