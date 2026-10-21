@@ -10,6 +10,9 @@ mutualstake:
   web-url: ""
   scheduling:
     enabled: false
+  agents:
+    anthropic-api-key: ""
+    timezone: Europe/Istanbul
   paypal:
     client-id: ""
     client-secret: ""

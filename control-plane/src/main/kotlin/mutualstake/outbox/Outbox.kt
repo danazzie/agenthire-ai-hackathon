@@ -10,7 +10,7 @@ import java.time.Instant
 import java.util.UUID
 
 /** Work done outside the request: PayPal calls and verifier runs. Written in the same transaction as the state change that needs it. */
-enum class OutboxType { CREATE_ORDER, CHECK_ORDER, AUTHORIZE, VOID, RUN_VERIFIER, CAPTURE, CHECK_CAPTURE, PAYOUT, CHECK_PAYOUT }
+enum class OutboxType { CREATE_ORDER, CHECK_ORDER, AUTHORIZE, VOID, RUN_VERIFIER, CAPTURE, CHECK_CAPTURE, PAYOUT, CHECK_PAYOUT, AGENT_TURN_BUYER, AGENT_TURN_SELLER, AGENT_DELIVER }
 
 /** A failure that knows what it is: [reason] lands on the row that needs attention; [retryable] says whether waiting can help. */
 interface ClassifiedFailure {

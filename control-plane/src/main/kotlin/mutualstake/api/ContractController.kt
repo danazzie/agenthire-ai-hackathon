@@ -1,6 +1,7 @@
 package mutualstake.api
 
 import com.fasterxml.jackson.databind.JsonNode
+import mutualstake.agents.Claude
 import mutualstake.config.MutualStakeProperties
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.NegotiationService
@@ -74,9 +75,10 @@ class ContractController(
     private val deliveryService: DeliveryService,
     private val settlement: SettlementService,
     private val callLog: PayPalCallLog,
+    private val claude: Claude,
 ) {
     @GetMapping("/status")
-    fun status() = StatusView(paypal.configured, props.paypal.webhooksConfigured, parties.all().map(::PartyView), SessionView(sessions.current()))
+    fun status() = StatusView(paypal.configured, props.paypal.webhooksConfigured, claude.available, parties.all().map(::PartyView), SessionView(sessions.current()))
 
     /** Compiles a structured test into a verifier and returns its source and SHA-256 (US-1, US-9). */
     @PostMapping("/verifiers/compile")

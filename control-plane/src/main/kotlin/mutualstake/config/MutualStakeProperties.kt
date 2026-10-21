@@ -13,6 +13,7 @@ data class MutualStakeProperties(
     val session: SessionDefaults = SessionDefaults(),
     val scheduling: Scheduling = Scheduling(),
     val verifier: Verifier = Verifier(),
+    val agents: Agents = Agents(),
 ) {
     data class PayPal(
         val clientId: String = "",
@@ -35,6 +36,11 @@ data class MutualStakeProperties(
 
     /** US-25: what one session's agents may commit, and on how many jobs. */
     data class SessionDefaults(val capMinor: Long = 3000, val maxJobs: Int = 2)
+
+    /** The Claude agents. Without a key they are off, and say so (no_credentials). */
+    data class Agents(val anthropicApiKey: String = "", val timezone: String = "", val maxOffers: Int = 12, val writingAttempts: Int = 4) {
+        val configured: Boolean get() = anthropicApiKey.isNotBlank()
+    }
 
     /** The sandboxed verifier runtime (Deno). An empty path means the pinned download in .tools, else PATH. */
     data class Verifier(

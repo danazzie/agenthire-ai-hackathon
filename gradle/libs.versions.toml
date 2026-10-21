@@ -2,10 +2,14 @@
 kotlin = "2.2.21"
 spring-boot = "3.5.16"
 archunit = "1.5.1"
+anthropic = "2.74.0"
 
 [libraries]
 kotlin-bom = { module = "org.jetbrains.kotlin:kotlin-bom", version.ref = "kotlin" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
+
+anthropic = { module = "com.anthropic:anthropic-java", version.ref = "anthropic" }
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

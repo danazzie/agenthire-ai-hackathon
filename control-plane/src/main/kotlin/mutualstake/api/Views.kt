@@ -1,5 +1,6 @@
 package mutualstake.api
 
+import mutualstake.agentic.AgentJobRepository
 import mutualstake.contract.Contract
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.OfferKind
@@ -51,7 +52,7 @@ data class SessionView(val id: UUID, val startedAt: Instant, val capMinor: Long,
     constructor(s: Session) : this(s.id, s.startedAt, s.cap.minor, s.maxJobs, s.firstCaptureConfirmedAt)
 }
 
-data class StatusView(val paypalConfigured: Boolean, val webhooksConfigured: Boolean, val parties: List<PartyView>, val session: SessionView)
+data class StatusView(val paypalConfigured: Boolean, val webhooksConfigured: Boolean, val agentsConfigured: Boolean, val parties: List<PartyView>, val session: SessionView)
 
 data class VerifierView(val id: UUID, val sha256: String, val language: String, val source: String, val compiledAt: Instant, val spec: String?) {
     constructor(v: Verifier) : this(v.id, v.sha256, v.language, v.source, v.compiledAt, v.spec)
@@ -118,6 +119,8 @@ data class ContractView(
     val seller: PartyView,
     val sellerType: SellerType,
     val jobText: String,
+    /** The person's own sentence, when the agents run the deal (US-1). */
+    val sentence: String?,
     val feeCapMinor: Long,
     val feeMinor: Long?,
     val bondMinor: Long?,
@@ -154,6 +157,7 @@ class ContractViews(
     private val blobs: BlobStore,
     private val runs: VerifierRunLog,
     private val sessions: SessionRepository,
+    private val agentJobs: AgentJobRepository,
 ) {
     fun delivery(contractId: UUID): DeliveryView? {
         val d = deliveries.forContract(contractId) ?: return null
@@ -184,6 +188,7 @@ class ContractViews(
             seller = PartyView(seller),
             sellerType = contract.sellerType,
             jobText = contract.jobText,
+            sentence = agentJobs.find(contract.id)?.sentence,
             feeCapMinor = contract.feeCap.minor,
             feeMinor = contract.fee?.minor,
             bondMinor = contract.bond?.minor,

@@ -12,5 +12,5 @@ import org.springframework.test.context.ActiveProfiles
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestPostgres::class, FakePayPalConfig::class)
+@Import(TestPostgres::class, FakePayPalConfig::class, FakeClaudeConfig::class)
 annotation class IntegrationTest

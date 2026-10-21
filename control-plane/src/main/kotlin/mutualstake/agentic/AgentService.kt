@@ -1,0 +1,108 @@
+package mutualstake.agentic
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import mutualstake.agents.AgentStoppedException
+import mutualstake.agents.BuyerAgent
+import mutualstake.agents.Claude
+import mutualstake.agents.JobRejectedException
+import mutualstake.api.ApiException
+import mutualstake.config.MutualStakeProperties
+import mutualstake.contract.Contract
+import mutualstake.contract.ContractRepository
+import mutualstake.contract.ContractState
+import mutualstake.contract.NegotiationService
+import mutualstake.contract.Terms
+import mutualstake.delivery.DeliveryService
+import mutualstake.money.Money
+import mutualstake.outbox.OutboxRepository
+import mutualstake.outbox.OutboxType
+import mutualstake.party.PartyRepository
+import mutualstake.verifier.Verifier
+import mutualstake.verifier.VerifierRepository
+import mutualstake.verifier.VerifierService
+import org.springframework.http.HttpStatus
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
+import java.time.Instant
+import java.util.UUID
+
+data class JobDraft(val sentence: String, val jobText: String, val feeCapMinor: Long, val deadlineAt: Instant, val verifier: Verifier)
+
+enum class DeliveryMode {
+    /** The seller's agent writes it and dry-runs it against the verifier until it passes. */
+    AGENT,
+
+    /** The demo's bad delivery: PROTOTYPES' lorem ipsum, delivered as is. Labelled as scripted wherever it shows. */
+    SCRIPTED_JUNK,
+}
+
+/** Screens 1 and 2 (US-1, US-8): a sentence becomes a confirmed test, then the two agents negotiate. */
+@Service
+class AgentService(
+    private val claude: Claude,
+    private val buyer: BuyerAgent,
+    private val verifierService: VerifierService,
+    private val verifiers: VerifierRepository,
+    private val negotiation: NegotiationService,
+    private val deliveries: DeliveryService,
+    private val contracts: ContractRepository,
+    private val parties: PartyRepository,
+    private val jobs: AgentJobRepository,
+    private val outbox: OutboxRepository,
+    private val props: MutualStakeProperties,
+    private val mapper: ObjectMapper,
+    private val clock: Clock,
+) {
+    /** The buyer's agent reads the sentence; the test is compiled. Nothing touches PayPal until the person confirms. */
+    fun draft(sentence: String): JobDraft {
+        requireAgents()
+        val proposal = try {
+            buyer.draftJob(sentence, clock.instant())
+        } catch (e: JobRejectedException) {
+            throw ApiException.unprocessable("job_rejected", e.message ?: "the sentence cannot become a job")
+        } catch (e: AgentStoppedException) {
+            throw ApiException(HttpStatus.BAD_GATEWAY, "agent_stopped", e.message ?: "the buyer's agent stopped")
+        }
+        val verifier = verifierService.compile(proposal.jobText, mapper.readTree(proposal.test))
+        return JobDraft(sentence.trim(), proposal.jobText, proposal.feeCapCents, proposal.deadlineAt, verifier)
+    }
+
+    /** The person confirmed the job and its test: open the deal and let the buyer's agent make the first offer. */
+    @Transactional
+    fun start(sentence: String, jobText: String, feeCap: Money, deadlineAt: Instant, verifierId: UUID): Contract {
+        requireAgents()
+        val verifier = verifiers.byId(verifierId) ?: throw ApiException.unprocessable("unknown_verifier", "no verifier $verifierId")
+        if (verifier.spec == null) throw ApiException.unprocessable("verifier_not_compiled", "the job's verifier must be compiled from a structured test")
+        val deadline = Terms.normalizeDeadline(deadlineAt)
+        if (!deadline.isAfter(clock.instant())) throw ApiException.unprocessable("deadline_passed", "the deadline must be in the future")
+        val buyerParty = parties.byHandle(props.parties.buyer.handle) ?: throw ApiException(HttpStatus.SERVICE_UNAVAILABLE, "no_credentials", "the buyer is not seeded")
+        val contract = negotiation.open(buyerParty, props.parties.seller.handle, jobText, feeCap)
+        jobs.insert(AgentJob(contract.id, sentence.trim(), verifier.id, deadline))
+        outbox.enqueue(contract.id, OutboxType.AGENT_TURN_BUYER)
+        return contract
+    }
+
+    fun deliver(contractId: UUID, mode: DeliveryMode) {
+        val contract = contracts.find(contractId) ?: throw ApiException.notFound("contract $contractId")
+        if (contract.state != ContractState.BOTH_HELD) throw ApiException.conflict("not_funded", "deliver once both holds are in place; this deal is ${contract.state}")
+        when (mode) {
+            DeliveryMode.AGENT -> {
+                requireAgents()
+                outbox.enqueue(contractId, OutboxType.AGENT_DELIVER)
+            }
+            DeliveryMode.SCRIPTED_JUNK -> deliveries.submit(contractId, parties.byId(contract.sellerId), SCRIPTED_JUNK)
+        }
+    }
+
+    private fun requireAgents() {
+        if (!claude.available) {
+            throw ApiException(HttpStatus.SERVICE_UNAVAILABLE, "no_credentials", "ANTHROPIC_API_KEY is not set, so the Claude agents are off; the scripted negotiation in docs/demo/sandbox-run.mjs still works")
+        }
+    }
+
+    companion object {
+        /** PROTOTYPES' fail-branch delivery, word for word. */
+        const val SCRIPTED_JUNK = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor."
+    }
+}

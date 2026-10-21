@@ -33,6 +33,11 @@ mutualstake:
     client-secret: ${PAYPAL_CLIENT_SECRET:}
     base-url: ${PAYPAL_BASE_URL:https://api-m.sandbox.paypal.com}
     webhook-id: ${PAYPAL_WEBHOOK_ID:}
+  agents:
+    # Claude for the buyer's and the seller's agents. Empty: the agent endpoints answer no_credentials.
+    anthropic-api-key: ${ANTHROPIC_API_KEY:}
+    # Where "by 18:00" is read. Empty: the server's zone.
+    timezone: ${AGENT_TIMEZONE:}
   verifier:
     # Empty: the pinned Deno in .tools if present, else `deno` on PATH (the Docker image ships it).
     deno-path: ${MUTUALSTAKE_DENO:}

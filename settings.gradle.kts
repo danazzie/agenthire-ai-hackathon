@@ -5,3 +5,4 @@ dependencyResolutionManagement {
 }
 
 include("control-plane")
+include("agents")

@@ -21,6 +21,7 @@ dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
     implementation(platform(libs.kotlin.bom))
 
+    implementation(project(":agents"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.flywaydb:flyway-core")
@@ -80,6 +81,16 @@ tasks.withType<Test>().configureEach {
     systemProperty("mutualstake.verifier.deno-path", denoBinary.absolutePath)
 }
 
+val claudeTest by tasks.registering(Test::class) {
+    description = "Runs the opt-in tests that call the real Claude API (ANTHROPIC_API_KEY in the repo-root .env)."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("claude") }
+    outputs.upToDateWhen { false }
+    testLogging { events("passed", "skipped", "failed"); showStandardStreams = true }
+}
+
 tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
     dependsOn(installDeno)
     systemProperty("mutualstake.verifier.deno-path", denoBinary.absolutePath)
@@ -87,7 +98,7 @@ tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
 
 tasks.test {
     // Real-sandbox tests only run when asked for: ./gradlew :control-plane:sandboxTest
-    useJUnitPlatform { excludeTags("sandbox") }
+    useJUnitPlatform { excludeTags("sandbox", "claude") }
     testLogging { events("passed", "skipped", "failed"); exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }
 
