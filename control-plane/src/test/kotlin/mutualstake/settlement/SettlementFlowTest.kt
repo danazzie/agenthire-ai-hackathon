@@ -135,9 +135,16 @@ class SettlementFlowTest @Autowired constructor(
         assertTrue(holds.forContract(c.id).all { it.state == HoldState.HELD }, "not even the void")
 
         settlement.confirm(c.id)
+        val settling = views.of(contracts.find(c.id)!!)
+        assertEquals(setOf("Capturing the seller bond on PayPal", "Releasing the buyer fee on PayPal"), settling.inFlight.map { it.label }.toSet())
+        assertNull(settling.outcome, "no who-got-what until PayPal has confirmed both")
         poller.drain()
 
         assertEquals(ContractState.SETTLED, state(c))
+        val settled = views.of(contracts.find(c.id)!!)
+        assertEquals("Alex's agent was never charged; Maya's agent's \$0.40 bond was paid to Alex's agent as compensation.", settled.outcome)
+        assertEquals(listOf("Released: \$1.50 never charged", "Compensation: \$0.40 paid to Alex's agent"), settled.holds.map { it.caption })
+        assertEquals(emptyList<String>(), settled.inFlight.map { it.label })
         assertEquals(HoldState.VOIDED, hold(c, BUYER_FEE).state)
         assertEquals(HoldState.PAID_OUT, hold(c, SELLER_BOND).state)
         assertEquals(listOf(Jar.RELEASED, Jar.COMPENSATION), listOf(jarOf(hold(c, BUYER_FEE)), jarOf(hold(c, SELLER_BOND))))
@@ -165,6 +172,9 @@ class SettlementFlowTest @Autowired constructor(
         assertEquals(HoldState.PAID_OUT, hold(c, BUYER_FEE).state)
         assertEquals(HoldState.VOIDED, hold(c, SELLER_BOND).state)
         assertEquals(listOf(Jar.PAID, Jar.RELEASED), listOf(jarOf(hold(c, BUYER_FEE)), jarOf(hold(c, SELLER_BOND))))
+        val settled = views.of(contracts.find(c.id)!!)
+        assertEquals("Maya's agent was paid \$1.50; Maya's agent's \$0.40 bond was released, never charged.", settled.outcome)
+        assertEquals(listOf("Paid: \$1.50 to Maya's agent", "Released: \$0.40 never charged"), settled.holds.map { it.caption })
         val payout = fake.payouts.values.single()
         assertEquals(maya.paypalEmail to Money(150), payout.receiver to payout.amount)
         assertTrue("PAYPAL_FEE:54:paypal" in events(c), "3.49% + 49 cents on \$1.50")
@@ -294,6 +304,9 @@ class SettlementFlowTest @Autowired constructor(
 
         assertEquals(HoldState.PAYOUT_REQUESTED, hold(c, SELLER_BOND).state)
         assertEquals(Jar.CAPTURED, jarOf(hold(c, SELLER_BOND)))
+        val waiting = views.of(contracts.find(c.id)!!)
+        assertEquals("Captured \$0.40; paying out to Alex's agent", waiting.holds.single { it.side == SELLER_BOND }.caption)
+        assertTrue(waiting.inFlight.any { it.label == "Waiting for PayPal to deliver the seller bond payout" })
         assertFalse(hold(c, SELLER_BOND).needsAttention)
 
         fake.payoutItemStatus = "SUCCESS"

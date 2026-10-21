@@ -34,6 +34,8 @@ class StillPendingException(override val reason: String) : RuntimeException(reas
     override val maxAttempts = 120
 }
 
+data class LiveStep(val aggregateId: UUID, val type: OutboxType, val attempts: Int, val lastError: String?)
+
 data class OutboxEvent(val id: UUID, val aggregateId: UUID, val type: OutboxType, val attempts: Int, val createdAt: Instant = Instant.EPOCH)
 
 @Repository
@@ -85,6 +87,21 @@ class OutboxRepository(private val jdbc: JdbcClient) {
         jdbc.sql("update outbox_event set dead_at = now(), locked_until = null, last_error = :error where id = :id")
             .param("error", error.take(1000)).param("id", id).update()
     }
+
+    /** Steps still to run for these aggregates: what the screen shows as "in progress". */
+    fun liveFor(aggregateIds: Collection<UUID>): List<LiveStep> =
+        if (aggregateIds.isEmpty()) {
+            emptyList()
+        } else {
+            jdbc.sql(
+                """
+                select aggregate_id, type, attempts, last_error from outbox_event
+                where aggregate_id in (:ids) and published_at is null and dead_at is null order by created_at
+                """,
+            ).param("ids", aggregateIds).query { rs, _ ->
+                LiveStep(rs.uuid("aggregate_id"), OutboxType.valueOf(rs.getString("type")), rs.getInt("attempts"), rs.getString("last_error"))
+            }.list()
+        }
 
     fun live(aggregateId: UUID): List<OutboxType> =
         jdbc.sql("select type from outbox_event where aggregate_id = :a and published_at is null and dead_at is null order by created_at")
