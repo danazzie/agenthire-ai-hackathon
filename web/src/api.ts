@@ -108,7 +108,11 @@ export interface Contract {
   updatedAt: string
 }
 
-export interface Status { paypalConfigured: boolean; webhooksConfigured: boolean; agentsConfigured: boolean; parties: Party[] }
+export interface Session { id: string; startedAt: string; capMinor: number; maxJobs: number; firstCaptureConfirmedAt: string | null }
+
+export interface Status { paypalConfigured: boolean; webhooksConfigured: boolean; agentsConfigured: boolean; parties: Party[]; session: Session }
+
+export interface ResetResult { archivedSessionId: string; session: Session; cancelled: string[] }
 
 export interface JobDraft { sentence: string; jobText: string; feeCapMinor: number; deadlineAt: string; verifier: Verifier }
 
@@ -156,4 +160,5 @@ export const api = {
   deliver: (id: string, mode: 'AGENT' | 'SCRIPTED_JUNK') => call<Contract>('POST', `/api/agents/contracts/${id}/deliver`, { mode }),
   confirm: (id: string) => call<Contract>('POST', `/api/contracts/${id}/confirm`),
   cancel: (id: string, party: string) => call<Contract>('POST', `/api/contracts/${id}/cancel`, undefined, party),
+  resetDemo: () => call<ResetResult>('POST', '/api/demo/reset'),
 }

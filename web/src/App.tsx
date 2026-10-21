@@ -34,9 +34,50 @@ function Header({ status, go }: { status: Status | null; go: (p: string) => void
   )
 }
 
+/**
+ * US-31: archive this session and start a clean one. Two clicks, no browser dialog. The control plane
+ * refuses while a deal has both holds placed: only its verdict or deadline may move that money.
+ */
+function ResetDemo({ done }: { done: () => void }) {
+  const [armed, setArmed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function reset() {
+    setBusy(true)
+    try {
+      const result = await api.resetDemo()
+      const voided = result.cancelled.length
+      setMessage(`New session started. ${voided === 0 ? 'No deal needed cancelling.' : `${voided} unfunded deal${voided === 1 ? '' : 's'} cancelled; any placed hold is being voided.`}`)
+      done()
+    } catch (e) {
+      setMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : String(e))
+    } finally {
+      setBusy(false)
+      setArmed(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      {armed ? (
+        <>
+          <span className="text-slate-700">Cancel unfunded deals, void their holds and start a new session?</span>
+          <button type="button" disabled={busy} onClick={reset} className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white disabled:opacity-50">Yes, reset</button>
+          <button type="button" disabled={busy} onClick={() => setArmed(false)} className="rounded-md border border-slate-300 px-3 py-1.5">Keep</button>
+        </>
+      ) : (
+        <button type="button" onClick={() => { setMessage(null); setArmed(true) }} className="rounded-md border border-slate-300 px-3 py-1.5">Reset demo</button>
+      )}
+      {message && <span className="text-slate-700" role="status">{message}</span>}
+    </div>
+  )
+}
+
 function Home({ status, go }: { status: Status | null; go: (p: string) => void }) {
   const [deals, setDeals] = useState<Contract[]>([])
-  useEffect(() => { api.contracts().then(setDeals).catch(() => setDeals([])) }, [])
+  const load = useCallback(() => { api.contracts().then(setDeals).catch(() => setDeals([])) }, [])
+  useEffect(load, [load])
   return (
     <div className="flex flex-col gap-4">
       <NewJob agents={status?.agentsConfigured ?? false} open={(id) => go(`/contracts/${id}`)} />
@@ -48,7 +89,7 @@ function Home({ status, go }: { status: Status | null; go: (p: string) => void }
               <li key={d.id}>
                 <a href={`/contracts/${d.id}`} onClick={(e) => { e.preventDefault(); go(`/contracts/${d.id}`) }} className="flex flex-wrap justify-between gap-2 py-2 text-sm hover:bg-slate-50">
                   <span className="font-medium">{d.jobText}</span>
-                  <span className="text-slate-600">{d.state} · {stepOf(d)} · {money(d.feeMinor)} / bond {money(d.bondMinor)}</span>
+                  <span className="text-slate-600">{d.state === 'CANCELLED' || d.state === 'SETTLED' ? d.state : `${d.state} · ${stepOf(d)}`} · {money(d.feeMinor)} / bond {money(d.bondMinor)}</span>
                   {d.outcome && <span className="w-full text-slate-700">{d.outcome}</span>}
                 </a>
               </li>
@@ -56,6 +97,7 @@ function Home({ status, go }: { status: Status | null; go: (p: string) => void }
           </ul>
         </section>
       )}
+      <ResetDemo done={load} />
     </div>
   )
 }
