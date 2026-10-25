@@ -59,7 +59,7 @@ services:
   - type: web
     name: mutual-stake-web
     runtime: static
-    plan: free
+    # Static sites have no compute plan; they are free and reject `plan: free`.
     branch: v1-build
     rootDir: web
     buildCommand: npm ci && npm run build
