@@ -107,13 +107,16 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 
 ## Deploy on Render
 
-[render.yaml](render.yaml) is a Blueprint for three services: the API (built from the [Dockerfile](Dockerfile), with Deno), the screen as a static site, and Postgres.
+[render.yaml](render.yaml) is a Blueprint for three services: the API (built from the [Dockerfile](Dockerfile), with Deno), the screen as a static site, and Postgres. The app is on **`v1-build`** (`main` is docs only), so deploys must use that branch.
 
-1. In Render, choose **New → Blueprint** and pick this repo. Enter the sandbox values when asked.
-2. After the first deploy, set `WEB_URL` on `mutual-stake-api` to the static site's address.
-3. Set `VITE_API_URL` on `mutual-stake-web` to the API's address, then redeploy the site.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/v1-build)
 
-On the free plan, the API sleeps after 15 idle minutes and takes about a minute to wake. The free database expires after 30 days.
+1. Click the button, or in Render choose **New → Blueprint**, pick this repo, and set the branch to `v1-build`. The first time, GitHub will ask you to install the [Render GitHub App](https://github.com/apps/render) on `danazzie/agenthire-ai-hackathon`.
+2. Enter the sandbox values when asked (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BUYER_EMAIL`, `PAYPAL_SELLER_EMAIL`; `ANTHROPIC_API_KEY` is optional).
+3. After the first deploy, set `WEB_URL` on `mutual-stake-api` to the static site's address.
+4. Set `VITE_API_URL` on `mutual-stake-web` to the API's address, then redeploy the site.
+
+Later pushes to `v1-build` redeploy both services. On the free plan, the API sleeps after 15 idle minutes and takes about a minute to wake. The free database expires after 30 days.
 
 ## Layout
 
