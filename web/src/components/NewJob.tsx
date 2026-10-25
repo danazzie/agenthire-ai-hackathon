@@ -31,7 +31,7 @@ export function NewJob({ agents, open }: { agents: boolean; open: (id: string) =
           id="sentence"
           value={sentence}
           onChange={(e) => { setSentence(e.target.value); setDraft(null) }}
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base"
+          className="min-w-72 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base"
         />
         <button type="button" disabled={busy || !agents} onClick={() => run(async () => setDraft(await api.draftJob(sentence)))}
           title={agents ? undefined : 'The Claude agents are off: ANTHROPIC_API_KEY is not set'}
