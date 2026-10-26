@@ -1,0 +1,77 @@
+# Render Blueprint: the control plane (Docker), the screen (static site) and Postgres.
+# The app lives on v1-build (main is docs only). Deploy from that branch:
+#   https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/v1-build
+# or New → Blueprint → this repo → branch v1-build.
+# Render asks for every `sync: false` value; none is ever committed.
+# After the first deploy, set WEB_URL on the API and VITE_API_URL on the site to each other's
+# https://…onrender.com address, then redeploy the site (Vite reads VITE_API_URL at build time).
+
+databases:
+  - name: mutual-stake-db
+    databaseName: mutualstake
+    user: mutualstake
+    plan: free
+    postgresMajorVersion: "16"
+    # Only the API reaches it, over Render's private network.
+    ipAllowList: []
+
+services:
+  - type: web
+    name: mutual-stake-api
+    runtime: docker
+    plan: free
+    branch: v1-build
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/status
+    autoDeployTrigger: commit
+    envVars:
+      - key: DB_HOST
+        fromDatabase: { name: mutual-stake-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: mutual-stake-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: mutual-stake-db, property: database }
+      - key: DB_USER
+        fromDatabase: { name: mutual-stake-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: mutual-stake-db, property: password }
+      # Sandbox only: the PayPal client refuses any other base URL.
+      - key: PAYPAL_BASE_URL
+        value: https://api-m.sandbox.paypal.com
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_BUYER_EMAIL
+        sync: false
+      - key: PAYPAL_SELLER_EMAIL
+        sync: false
+      # Optional: without it the agents are off and the scripted job still runs.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Where an agent reads "by 18:00", e.g. Europe/Istanbul. Empty means UTC.
+      - key: AGENT_TIMEZONE
+        sync: false
+      # The static site's address, the only origin allowed to call the API from a browser.
+      - key: WEB_URL
+        sync: false
+
+  - type: web
+    name: mutual-stake-web
+    runtime: static
+    # Static sites have no compute plan; they are free and reject `plan: free`.
+    branch: v1-build
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeployTrigger: commit
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # The API's address, e.g. https://mutual-stake-api.onrender.com
+      - key: VITE_API_URL
+        sync: false

@@ -1,0 +1,11 @@
+# Only the Gradle build goes into the image. Never the .env or local tools.
+*
+!gradlew
+!settings.gradle.kts
+!gradle.properties
+!gradle/
+!agents/
+!control-plane/
+**/build/
+**/.gradle/
+**/.kotlin/

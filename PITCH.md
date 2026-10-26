@@ -1,18 +1,18 @@
-# Pitch ó Mutual Stake
+# Pitch ‚Äî Mutual Stake
 
 **Tagline:** PayPal holds both sides. The test, not a mood, decides who gets paid.
 
-**Elevator (8 seconds):** Agents can already do the work. They still cannot settle it. We hold the buyerís fee *and* the sellerís bond on PayPal, compile the deal into a test, and capture or void ó nobody is charged on an opinion.
+**Elevator (8 seconds):** Agents can already do the work. They still cannot settle it. We hold the buyer‚Äôs fee *and* the seller‚Äôs bond on PayPal, compile the deal into a test, and capture or void ‚Äî nobody is charged on an opinion.
 
 ---
 
 ## The problem, elevated
 
-Every other ìagentic paymentî in this hackathon protects **one** side.
+Every other ‚Äúagentic payment‚Äù in this hackathon protects **one** side.
 
 - Shopping agents: a human still clicks Pay.
 - Freelance escrow clones: the **buyer** holds money; the **worker** risks only time. Ghosting is free.
-- ìAI refereesî: a language model **opines** after delivery. Prompt injection is a business model.
+- ‚ÄúAI referees‚Äù: a language model **opines** after delivery. Prompt injection is a business model.
 
 PayPal asked what happens when AI is behind the wheel of **money**. The missing primitive is not checkout. It is **a deal two machines can finish without trusting each other**.
 
@@ -24,26 +24,26 @@ That is how markets actually clear: both parties post a stake, the contract is p
 
 **Void is not a refund.** A refund means you already took the money. A PayPal **authorization** means you never took it.
 
-If the test fails, the buyer was never charged. If the seller no-shows, their **bond** ó a small hold they posted to take the job ó is the only money that moves, as compensation.
+If the test fails, the buyer was never charged. If the seller no-shows, their **bond** ‚Äî a small hold they posted to take the job ‚Äî is the only money that moves, as compensation.
 
-Thirty teams will show ìAI judged the work, then PayPal paid.î We show **two jars**: fee and bond. One run **refuses**. The next run **pays**. Judges remember refusal.
+Thirty teams will show ‚ÄúAI judged the work, then PayPal paid.‚Äù We show **two jars**: fee and bond. One run **refuses**. The next run **pays**. Judges remember refusal.
 
 ---
 
 ## What we built (v1)
 
-Two agents. One sentence from the human (ì50-word blurb, max $2, by 18:00, no lorem ipsumî).
+Two agents. One sentence from the human (‚Äú50-word blurb, max $2, by 18:00, no lorem ipsum‚Äù).
 
-1. They **negotiate** price, deadline, and bond (default ? 25% of the fee).
+1. They **negotiate** price, deadline, and bond (default ‚âà 25% of the fee).
 2. The agent **compiles** the sentence into a verifier. Both sides see it. Its hash is written on **both** PayPal orders **before** anyone approves a hold.
 3. Buyer authorizes the **fee**. Seller authorizes the **bond**. Status: **Held**. Nothing captured.
 4. Seller delivers text or a file.
 5. The **verifier runs code**, not a chat. Placeholder text fails. Fifty real words pass.
-6. **FAIL** ? void the fee (buyer never charged) ? capture the bond ? Payouts to the buyer.  
-   **PASS** ? capture the fee to the seller ? void the bond (seller never charged).
+6. **FAIL** ‚Üí void the fee (buyer never charged) ‚Üí capture the bond ‚Üí Payouts to the buyer.  
+   **PASS** ‚Üí capture the fee to the seller ‚Üí void the bond (seller never charged).
 7. Either side can push the log into PayPal **Disputes**. The evidence is the contract they already signed with the hash.
 
-v1 is **agent ? agent**. The same rails later hire a person. We do not fake that in November.
+v1 is **agent ‚Üí agent**. The same rails later hire a person. We do not fake that in November.
 
 ---
 
@@ -51,7 +51,7 @@ v1 is **agent ? agent**. The same rails later hire a person. We do not fake that
 
 | Without PayPal | Without the agent |
 |---|---|
-| Two chatbots and a green ìPaidî label | A human clicking Pay after a suggestion |
+| Two chatbots and a green ‚ÄúPaid‚Äù label | A human clicking Pay after a suggestion |
 | You have a toy | You have checkout with extra steps |
 
 Load-bearing on both sides. Orders v2 `AUTHORIZE` / capture / void, Payouts v1, `custom_id` as the mandate, Disputes as the appeal. It is a PayPal authorization hold (~29 days), **not** legal escrow. We say that on the README.
@@ -62,9 +62,9 @@ Load-bearing on both sides. Orders v2 `AUTHORIZE` / capture / void, Payouts v1, 
 
 | They | We |
 |---|---|
-| Protect the buyer only | **Mutual stake** ó worker posts a bond |
-| LLM ìlooks goodî after the fact | Test **compiled and hashed before** the hold |
-| One happy-path ìPaidî | **Refuse, then pay** in the same video |
+| Protect the buyer only | **Mutual stake** ‚Äî worker posts a bond |
+| LLM ‚Äúlooks good‚Äù after the fact | Test **compiled and hashed before** the hold |
+| One happy-path ‚ÄúPaid‚Äù | **Refuse, then pay** in the same video |
 | Human marketplace cosplay | Agents are the parties; human only typed the sentence |
 
 The bond is a no-show deposit, the same idea hotels already use, applied to the seller. If they deliver, they lose nothing.
@@ -75,7 +75,7 @@ The bond is a no-show deposit, the same idea hotels already use, applied to the 
 
 > PayPal already moves money for people. We asked it to settle a deal between two agents that do not trust each other.
 >
-> The clientís agent holds the fee. The workerís agent holds a small bond. The job is a sentence that becomes a test, hashed onto both PayPal orders before anyone is charged.
+> The client‚Äôs agent holds the fee. The worker‚Äôs agent holds a small bond. The job is a sentence that becomes a test, hashed onto both PayPal orders before anyone is charged.
 >
 > Junk delivery: the client is never charged, and the bond pays them for the wasted turn. Real work: the fee is captured, the bond is released.
 >
@@ -87,12 +87,12 @@ The bond is a no-show deposit, the same idea hotels already use, applied to the 
 
 | Time | On screen | Say (optional) |
 |---|---|---|
-| 0:00ñ0:12 | One sentence. Two labelled agents. | Agents can work. They still cannot settle. |
-| 0:12ñ0:28 | Two jars go **Held**. Hash + two sandbox order ids. | Fee and bond. Nothing captured. |
-| 0:28ñ0:48 | Lorem ipsum in. Verifier FAIL. Fee **Released**. Bond **Compensation**. Dashboard: void + payout. | They never charged the client. |
-| 0:48ñ1:12 | Real 50-word blurb. PASS. Fee **Paid**. Bond **Released**. Dashboard: capture + void. | Same rails. The test passed. |
-| 1:12ñ1:25 | One line: ìSame envelope for a $2 blurb or an $800 job.î | Not a marketplace. A settlement primitive. |
-| 1:25ñ1:30 | End card: Mutual Stake ∑ PayPal sandbox ids | ó |
+| 0:00‚Äì0:12 | One sentence. Two labelled agents. | Agents can work. They still cannot settle. |
+| 0:12‚Äì0:28 | Two jars go **Held**. Hash + two sandbox order ids. | Fee and bond. Nothing captured. |
+| 0:28‚Äì0:48 | Lorem ipsum in. Verifier FAIL. Fee **Released**. Bond **Compensation**. Dashboard: void + payout. | They never charged the client. |
+| 0:48‚Äì1:12 | Real 50-word blurb. PASS. Fee **Paid**. Bond **Released**. Dashboard: capture + void. | Same rails. The test passed. |
+| 1:12‚Äì1:25 | One line: ‚ÄúSame envelope for a $2 blurb or an $800 job.‚Äù | Not a marketplace. A settlement primitive. |
+| 1:25‚Äì1:30 | End card: Mutual Stake ¬∑ PayPal sandbox ids | ‚Äî |
 
 No music. No logos you do not own. If the sound is off, the jars still tell the story.
 
@@ -101,21 +101,21 @@ No music. No logos you do not own. If the sound is off, the jars still tell the 
 ## Devpost copy
 
 **Short (about 400 characters):**  
-Mutual Stake lets two agents settle work on PayPal without trusting each other. The buyerís fee and the sellerís bond are authorized, not captured. A test compiled from the job ó hashed onto both orders ó decides capture or void. Fail: the client is never charged; the bond compensates them. Pass: the seller is paid; the bond is released. Money never moves on an opinion.
+Mutual Stake lets two agents settle work on PayPal without trusting each other. The buyer‚Äôs fee and the seller‚Äôs bond are authorized, not captured. A test compiled from the job ‚Äî hashed onto both orders ‚Äî decides capture or void. Fail: the client is never charged; the bond compensates them. Pass: the seller is paid; the bond is released. Money never moves on an opinion.
 
 **How we used PayPal:**  
 Orders v2 authorize / capture / void for fee and bond; Payouts v1 to send a captured bond to the buyer; `custom_id` holds the verifier hash; Disputes API for appeal; Agent Toolkit / MCP for agent calls where tools exist.
 
 **How we used AI:**  
-Buyer and seller agents negotiate terms; compile a plain-English test into an executable verifier; run the verifier on the deliverable; call PayPal. The model does not get to ìfeelî that the work is good.
+Buyer and seller agents negotiate terms; compile a plain-English test into an executable verifier; run the verifier on the deliverable; call PayPal. The model does not get to ‚Äúfeel‚Äù that the work is good.
 
 ---
 
 ## Prize lanes we actually aim at
 
-1. **Best Use of Agentic Commerce** ó two agents transact; money moves or is refused.  
-2. **Best Use of PayPal + AI** ó authorize/void/capture is the product.  
-3. **Best Demo Delivery** ó refuse, then pay.  
+1. **Best Use of Agentic Commerce** ‚Äî two agents transact; money moves or is refused.  
+2. **Best Use of PayPal + AI** ‚Äî authorize/void/capture is the product.  
+3. **Best Demo Delivery** ‚Äî refuse, then pay.  
 4. Overall only if the sandbox ids are real and the README is runnable.
 
 We do not chase grocery, AG Grid, or a sad charity story.
@@ -128,12 +128,12 @@ We do not chase grocery, AG Grid, or a sad charity story.
 MUTUAL STAKE
 PayPal holds both sides. The test decides.
 
-  Client agent ??AUTHORIZE fee???  [ JAR: FEE ]
-  Seller agent ??AUTHORIZE bond??  [ JAR: BOND ]
-                     ?
+  Client agent ‚îÄ‚îÄAUTHORIZE fee‚îÄ‚îÄ‚ñ∂  [ JAR: FEE ]
+  Seller agent ‚îÄ‚îÄAUTHORIZE bond‚îÄ‚ñ∂  [ JAR: BOND ]
+                     ‚ñº
               compiled test
               (hash on both orders)
-                     ?
+                     ‚ñº
            FAIL: void fee, pay bond to client
            PASS: capture fee, void bond
 ```
@@ -144,11 +144,11 @@ PayPal holds both sides. The test decides.
 
 | They say | You say |
 |---|---|
-| ìThatís just escrow.î | Escrow takes the money. We **never capture** on fail. And the **seller** posts a hold too. |
-| ìThe AI is the judge.î | The AI **writes the test**. Code **runs** it. The hash was on the order before delivery. |
-| ìTwo bots paying $2 is a toy.î | The human typed the cap. The envelope is the same for a real invoice. We are not Upwork in four weeks. |
-| ìHoldfast already did this.î | They protect the buyer and ask Gemini after the fact. We hold **both** sides and settle on a **pre-agreed** verifier. |
-| ìShow me PayPal.î | Two order ids, one void, one capture, one payout ó in the dashboard, in the video. |
+| ‚ÄúThat‚Äôs just escrow.‚Äù | Escrow takes the money. We **never capture** on fail. And the **seller** posts a hold too. |
+| ‚ÄúThe AI is the judge.‚Äù | The AI **writes the test**. Code **runs** it. The hash was on the order before delivery. |
+| ‚ÄúTwo bots paying $2 is a toy.‚Äù | The human typed the cap. The envelope is the same for a real invoice. We are not Upwork in four weeks. |
+| ‚ÄúHoldfast already did this.‚Äù | They protect the buyer and ask Gemini after the fact. We hold **both** sides and settle on a **pre-agreed** verifier. |
+| ‚ÄúShow me PayPal.‚Äù | Two order ids, one void, one capture, one payout ‚Äî in the dashboard, in the video. |
 
 ---
 

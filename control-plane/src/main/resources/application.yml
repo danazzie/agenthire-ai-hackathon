@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: mutual-stake
+  config:
+    # Local runs read the repo-root .env (gitignored); deployed runs get real environment variables.
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mutualstake}
+    username: ${DB_USER:mutualstake}
+    password: ${DB_PASSWORD:mutualstake}
+  flyway:
+    locations: classpath:db/migration
+  http:
+    client:
+      # A PayPal call that never answers (a laptop sleeping mid-request did exactly this) must fail, not hang.
+      connect-timeout: 5s
+      read-timeout: 30s
+  task:
+    scheduling:
+      pool:
+        # The outbox poller and the sweeper each get a thread: one stuck task cannot stop the other.
+        size: 4
+
+# The client API only: PayPal's webhook and the payer's return pages are not for API clients.
+springdoc:
+  api-docs:
+    # 3.0 imports cleanly into Postman and APIMatic.
+    version: openapi_3_0
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  writer-with-order-by-keys: true
+
+server:
+  # Render injects PORT. Locally 8088, because 8080 is commonly taken.
+  port: ${PORT:8088}
+
+mutualstake:
+  # Where PayPal sends the payer back. On Render the service knows its own URL.
+  public-url: ${PUBLIC_URL:${RENDER_EXTERNAL_URL:http://localhost:8088}}
+  web-url: ${WEB_URL:}
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    base-url: ${PAYPAL_BASE_URL:https://api-m.sandbox.paypal.com}
+    webhook-id: ${PAYPAL_WEBHOOK_ID:}
+  agents:
+    # Claude for the buyer's and the seller's agents. Empty: the agent endpoints answer no_credentials.
+    anthropic-api-key: ${ANTHROPIC_API_KEY:}
+    # Where "by 18:00" is read. Empty: the server's zone.
+    timezone: ${AGENT_TIMEZONE:}
+  verifier:
+    # Empty: the pinned Deno in .tools if present, else `deno` on PATH (the Docker image ships it).
+    deno-path: ${MUTUALSTAKE_DENO:}
+  parties:
+    buyer:
+      handle: alex
+      display-name: Alex's agent
+      paypal-email: ${PAYPAL_BUYER_EMAIL:}
+    seller:
+      handle: maya
+      display-name: Maya's agent
+      paypal-email: ${PAYPAL_SELLER_EMAIL:}
