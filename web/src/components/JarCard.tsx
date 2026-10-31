@@ -29,7 +29,7 @@ function JarGlyph({ jar, id }: { jar: Jar; id: string }) {
   const fillTop = bottom - (bottom - top) * look.level
   const body = 'M30 34 Q30 26 38 26 L102 26 Q110 26 110 34 L110 138 Q110 150 98 150 L42 150 Q30 150 30 138 Z'
   return (
-    <svg viewBox="0 0 140 160" className="h-36 w-32 shrink-0" role="img" aria-label={`${JAR_LABEL[jar]} jar`}>
+    <svg viewBox="0 0 140 160" className="h-28 w-24 shrink-0 sm:h-36 sm:w-32" role="img" aria-label={`${JAR_LABEL[jar]} jar`}>
       <defs>
         <clipPath id={`jar-${id}`}>
           <path d={body} />
@@ -58,14 +58,14 @@ export function JarCard({ hold, title, party }: { hold: Hold | null; title: stri
   const jar: Jar = hold?.jar ?? 'EMPTY'
   const look = LOOK[jar]
   return (
-    <section className="@container flex min-w-0 flex-1 flex-col items-center rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm" aria-label={`${title} jar`}>
-      <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</div>
-      <div className="text-base font-medium text-slate-700">{party}</div>
+    <section className="@container flex min-w-0 flex-1 flex-col items-center rounded-sm border border-rule bg-paper px-4 py-5" aria-label={`${title} jar`}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{title}</div>
+      <div className="mt-0.5 text-sm text-ink-soft">{party}</div>
       <JarGlyph jar={jar} id={hold?.id ?? title} />
-      <div className={`max-w-full text-center text-xl font-bold break-words @[12rem]:text-2xl @[15rem]:text-3xl ${look.text}`}>{JAR_LABEL[jar]}</div>
-      <div className="text-2xl font-semibold tabular-nums">{money(hold?.amountMinor)}</div>
-      <div className="mt-1 min-h-10 text-center text-sm text-slate-700">{hold?.caption ?? 'not held yet'}</div>
-      <div className="mt-2 w-full truncate text-center font-mono text-xs text-slate-500" title={hold?.paypalOrderId ?? ''}>
+      <div className={`font-display max-w-full whitespace-nowrap text-center text-base font-medium leading-none tracking-tight @[12rem]:text-lg @[14rem]:text-2xl @[20rem]:text-4xl ${look.text}`}>{JAR_LABEL[jar]}</div>
+      <div className="font-display mt-1 text-3xl tabular-nums">{money(hold?.amountMinor)}</div>
+      <div className="mt-2 min-h-10 px-1 text-balance text-center text-sm leading-snug text-ink-soft">{hold?.caption ?? 'not held yet'}</div>
+      <div className="mt-2 w-full truncate text-center font-mono text-[11px] text-muted" title={hold?.paypalOrderId ?? ''}>
         {hold?.paypalOrderId ? `order ${hold.paypalOrderId}` : 'no PayPal order yet'}
       </div>
     </section>

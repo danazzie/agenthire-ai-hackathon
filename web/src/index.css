@@ -1,20 +1,38 @@
 @import "tailwindcss";
 
-/* The jar states' colours. Text always says the state too: colour is never the only signal. */
+/* Warm Editorial Escrow — Stitch design system for Mutual Stake.
+   State words always accompany colour. */
 @theme {
-  --color-held: #b45309;
-  --color-held-fill: #fbbf24;
-  --color-captured: #0369a1;
-  --color-captured-fill: #7dd3fc;
-  --color-paid: #047857;
-  --color-paid-fill: #6ee7b7;
-  --color-released: #475569;
-  --color-compensation: #6d28d9;
-  --color-compensation-fill: #c4b5fd;
-  --color-ink: #0f172a;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-canvas: #f4f1ea;
+  --color-paper: #fcfbf8;
+  --color-sunken: #eae6dd;
+  --color-ink: #1c1d1a;
+  --color-ink-soft: #57564f;
+  --color-muted: #8c897e;
+  --color-rule: #ded9ce;
+  --color-held: #92400e;
+  --color-held-fill: #f3d9b1;
+  --color-captured: #475569;
+  --color-captured-fill: #cbd5e1;
+  --color-paid: #1d5c42;
+  --color-paid-fill: #b8dcce;
+  --color-released: #57564f;
+  --color-compensation: #5b21b6;
+  --color-compensation-fill: #ddd6fe;
+  --font-sans: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: Newsreader, ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 
-html { background: #f8fafc; color: var(--color-ink); }
+html { background: var(--color-canvas); color: var(--color-ink); }
 body { margin: 0; font-family: var(--font-sans); }
+.font-display { font-family: var(--font-display); }
+:focus-visible { outline: 2px solid #1d5c42; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
