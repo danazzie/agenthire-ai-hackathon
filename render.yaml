@@ -1,7 +1,7 @@
 # Render Blueprint: the control plane (Docker), the screen (static site) and Postgres.
-# The app lives on v1-build (main is docs only). Deploy from that branch:
-#   https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/v1-build
-# or New → Blueprint → this repo → branch v1-build.
+# Render deploys from main; work lands there through pull requests from v1-build.
+#   https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/main
+# or New → Blueprint → this repo → branch main.
 # Render asks for every `sync: false` value; none is ever committed.
 # After the first deploy, set WEB_URL on the API and VITE_API_URL on the site to each other's
 # https://…onrender.com address, then redeploy the site (Vite reads VITE_API_URL at build time).
@@ -20,7 +20,7 @@ services:
     name: mutual-stake-api
     runtime: docker
     plan: free
-    branch: v1-build
+    branch: main
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/status
     autoDeployTrigger: commit
@@ -60,7 +60,7 @@ services:
     name: mutual-stake-web
     runtime: static
     # Static sites have no compute plan; they are free and reject `plan: free`.
-    branch: v1-build
+    branch: main
     rootDir: web
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
