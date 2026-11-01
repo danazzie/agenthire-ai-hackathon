@@ -1,25 +1,38 @@
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, ApiError, type Contract, type PayPalCall, type Status, type Verifier } from './api.ts'
+import { BuyerHome } from './components/BuyerMarket.tsx'
 import { DealView } from './components/DealView.tsx'
+import { BrandLockup, DeskChrome, Icon } from './components/DeskShell.tsx'
 import { Gallery } from './components/Gallery.tsx'
-import { NewJob } from './components/NewJob.tsx'
+import { JudgeHome } from './components/JudgeMarket.tsx'
 import { RoleDesk } from './components/RoleDesk.tsx'
+import { SellerHome } from './components/SellerMarket.tsx'
 import { SCRIPTED_PASS_TEXT } from './scripted.ts'
-import { money, settled, stepOf } from './model.ts'
+import { settled } from './model.ts'
 import { dealPath, deskHome, parsePath, readRole, writeRole, type Desk } from './role.ts'
 
-function usePath(): [string, (p: string) => void] {
-  const [path, setPath] = useState(window.location.pathname)
+function pathOnly(p: string) {
+  return p.split(/[?#]/)[0] || '/'
+}
+
+function usePath(): [string, string, (p: string) => void] {
+  const [path, setPath] = useState(() => pathOnly(window.location.pathname))
+  const [hash, setHash] = useState(() => window.location.hash)
   useEffect(() => {
-    const back = () => setPath(window.location.pathname)
+    const back = () => {
+      setPath(pathOnly(window.location.pathname))
+      setHash(window.location.hash)
+    }
     window.addEventListener('popstate', back)
     return () => window.removeEventListener('popstate', back)
   }, [])
   const go = useCallback((p: string) => {
-    window.history.pushState(null, '', p)
-    setPath(p)
+    const url = new URL(p, window.location.origin)
+    window.history.pushState(null, '', url.pathname + url.hash)
+    setPath(url.pathname)
+    setHash(url.hash)
   }, [])
-  return [path, go]
+  return [path, hash, go]
 }
 
 function Header({ status, desk, dealId, go }: { status: Status | null; desk: Desk | null; dealId: string | null; go: (p: string) => void }) {
@@ -28,7 +41,7 @@ function Header({ status, desk, dealId, go }: { status: Status | null; desk: Des
   return (
     <header className="flex flex-col items-start gap-3 border-b border-rule pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4 sm:pb-5">
       <div>
-        <a href={home} onClick={(e) => { e.preventDefault(); go(home) }} className="font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">Mutual Stake</a>
+        <a href={home} onClick={(e) => { e.preventDefault(); go(home) }} className="font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">HireMind</a>
         <p className="mt-1 max-w-xl text-sm text-ink-soft">PayPal holds both sides. The test, not a mood, decides who gets paid.</p>
       </div>
       <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -54,115 +67,39 @@ function Header({ status, desk, dealId, go }: { status: Status | null; desk: Des
   )
 }
 
-function ResetDemo({ done }: { done: () => void }) {
-  const [armed, setArmed] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-
-  async function reset() {
-    setBusy(true)
-    try {
-      const result = await api.resetDemo()
-      const voided = result.cancelled.length
-      setMessage(`New session started. ${voided === 0 ? 'No deal needed cancelling.' : `${voided} unfunded deal${voided === 1 ? '' : 's'} cancelled; any placed hold is being voided.`}`)
-      done()
-    } catch (e) {
-      setMessage(e instanceof ApiError ? `${e.code}: ${e.message}` : String(e))
-    } finally {
-      setBusy(false)
-      setArmed(false)
-    }
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      {armed ? (
-        <>
-          <span className="text-slate-700">Cancel unfunded deals, void their holds and start a new session?</span>
-          <button type="button" disabled={busy} onClick={reset} className="min-h-11 rounded-sm bg-ink px-3 py-2 font-medium text-paper disabled:opacity-40">Yes, reset</button>
-          <button type="button" disabled={busy} onClick={() => setArmed(false)} className="min-h-11 rounded-sm border border-rule bg-paper px-3 py-2">Keep</button>
-        </>
-      ) : (
-        <button type="button" onClick={() => { setMessage(null); setArmed(true) }} className="min-h-11 rounded-sm border border-rule bg-paper px-3 py-2">Reset demo</button>
-      )}
-      {message && <span className="text-slate-700" role="status">{message}</span>}
-    </div>
-  )
-}
-
 function RolePicker({ go, dest }: { go: (p: string) => void; dest?: (desk: Desk) => string }) {
   function pick(desk: Desk) {
     if (desk === 'buyer' || desk === 'seller') writeRole(desk)
     go(dest ? dest(desk) : deskHome(desk))
   }
-  const card = 'flex min-h-36 flex-col justify-between rounded-lg border border-rule bg-paper p-5 text-left'
+  const card = 'flex min-h-44 w-full min-w-0 flex-col justify-between whitespace-normal break-words rounded-2xl bg-white p-6 text-left shadow-sm'
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="font-display text-3xl font-medium">Who are you in this deal?</h2>
-      <p className="max-w-xl text-ink-soft">Each person only acts on their own PayPal hold. Both jars stay visible so you can still say who was Held, Paid, Released or Compensation.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 px-4 py-10 sm:px-6">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.6px] text-[#2563eb]">HireMind / Choose a desk</p>
+        <h1 className="mt-1 text-[30px] leading-tight tracking-[-0.5px] text-[#0f172a]">Who are you in this deal?</h1>
+        <p className="mt-2 max-w-2xl text-[14px] leading-normal text-[#64748b]">Pick the person you are. Alex hires and approves the fee. Maya delivers the work. The judge can see both sides.</p>
+      </div>
+      <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-4">
         <button type="button" onClick={() => pick('buyer')} className={card}>
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Buyer</span>
-          <span className="font-display text-3xl font-medium">Alex's agent</span>
-          <span className="text-sm text-ink-soft">Post the job. Approve the fee. Nothing is charged until the test passes.</span>
+          <span className="flex size-12 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--bm-primary-c)_15%,white)]"><Icon name="storefront" className="text-[24px] text-[var(--bm-primary)]" /></span>
+          <span className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--bm-on-var)]">Buyer</span>
+          <span className="text-[22px] leading-tight tracking-[-0.3px] text-[#0f172a]">Alex's agent</span>
+          <span className="text-sm text-[var(--bm-on-var)]">Hire Maya. Approve the fee. Nothing is charged until the test passes.</span>
         </button>
         <button type="button" onClick={() => pick('seller')} className={card}>
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Seller</span>
-          <span className="font-display text-3xl font-medium">Maya's agent</span>
-          <span className="text-sm text-ink-soft">Post the bond. Deliver the work. The bond is released if you pass.</span>
+          <span className="flex size-12 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--bm-primary-c)_15%,white)]"><Icon name="inbox" className="text-[24px] text-[var(--bm-primary)]" /></span>
+          <span className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--bm-on-var)]">Seller</span>
+          <span className="text-[22px] leading-tight tracking-[-0.3px] text-[#0f172a]">Maya's agent</span>
+          <span className="text-sm text-[var(--bm-on-var)]">Post the bond. Deliver the work. The bond is released if you pass.</span>
+        </button>
+        <button type="button" onClick={() => pick('judge')} className={card}>
+          <span className="flex size-12 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--bm-primary-c)_15%,white)]"><Icon name="gavel" className="text-[24px] text-[var(--bm-primary)]" /></span>
+          <span className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--bm-on-var)]">Judge</span>
+          <span className="text-[22px] leading-tight tracking-[-0.3px] text-[#0f172a]">Both sides at once</span>
+          <span className="text-sm text-[var(--bm-on-var)]">See both sides, start a job, or reset the session.</span>
         </button>
       </div>
-      <button type="button" onClick={() => pick('judge')} className="self-start text-sm underline decoration-rule underline-offset-4">
-        Open the judge desk (both sides at once)
-      </button>
-    </div>
-  )
-}
-
-function DealList({ desk, go }: { desk: Desk; go: (p: string) => void }) {
-  const [deals, setDeals] = useState<Contract[]>([])
-  const load = useCallback(() => { api.contracts().then(setDeals).catch(() => setDeals([])) }, [])
-  useEffect(load, [load])
-  return (
-    <>
-      {deals.length > 0 && (
-        <section className="rounded-lg border border-rule bg-paper p-4">
-          <h2 className="mb-2 text-lg font-semibold">This session's deals</h2>
-          <ul className="flex flex-col divide-y divide-slate-100">
-            {deals.map((d) => (
-              <li key={d.id}>
-                <a href={dealPath(desk, d.id)} onClick={(e) => { e.preventDefault(); go(dealPath(desk, d.id)) }} className="flex flex-col gap-1 py-3 text-sm hover:bg-slate-50 sm:flex-row sm:flex-wrap sm:justify-between sm:py-2">
-                  <span className="font-medium">{d.jobText}</span>
-                  <span className="text-slate-600">{d.state === 'CANCELLED' || d.state === 'SETTLED' ? d.state : `${d.state} · ${stepOf(d)}`} · {money(d.feeMinor)} / bond {money(d.bondMinor)}</span>
-                  {d.outcome && <span className="w-full text-slate-700">{d.outcome}</span>}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {desk === 'judge' && <ResetDemo done={load} />}
-    </>
-  )
-}
-
-function DeskHome({ desk, status, go }: { desk: Desk; status: Status | null; go: (p: string) => void }) {
-  return (
-    <div className="flex flex-col gap-4">
-      {desk === 'buyer' && (
-        <>
-          <p className="text-ink-soft">You pay the fee. Approve your hold when the agents lock terms. Maya posts a smaller bond.</p>
-          <NewJob agents={status?.agentsConfigured ?? false} open={(id) => go(dealPath('buyer', id))} />
-        </>
-      )}
-      {desk === 'seller' && (
-        <section className="rounded-lg border border-rule bg-paper p-5">
-          <h2 className="font-display text-2xl font-medium">Waiting for a job</h2>
-          <p className="mt-2 text-ink-soft">Alex's agent posts the job. When terms lock, you approve a {money(40)} bond — held, not charged, unless the work fails its test.</p>
-        </section>
-      )}
-      {desk === 'judge' && <NewJob agents={status?.agentsConfigured ?? false} open={(id) => go(dealPath('judge', id))} />}
-      <DealList desk={desk} go={go} />
     </div>
   )
 }
@@ -171,6 +108,7 @@ function Deal({ id, desk }: { id: string; desk: Desk }) {
   const [deal, setDeal] = useState<Contract | null>(null)
   const [verifier, setVerifier] = useState<Verifier | null>(null)
   const [calls, setCalls] = useState<PayPalCall[] | null>(null)
+  const [reads, setReads] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const lastCalls = useRef(0)
@@ -183,12 +121,12 @@ function Deal({ id, desk }: { id: string; desk: Desk }) {
       if (verifierId && verifier?.id !== verifierId) setVerifier(next.verifier ?? (await api.verifier(verifierId)))
       if (next.holds.some((h) => h.paypalOrderId) && Date.now() - lastCalls.current > 5000) {
         lastCalls.current = Date.now()
-        setCalls(await api.paypalCalls(id))
+        setCalls(await api.paypalCalls(id, reads))
       }
     } catch (e) {
       setError(e instanceof ApiError ? `${e.code}: ${e.message}` : String(e))
     }
-  }, [id, verifier?.id])
+  }, [id, verifier?.id, reads])
 
   useEffect(() => {
     refresh()
@@ -215,9 +153,16 @@ function Deal({ id, desk }: { id: string; desk: Desk }) {
     deliver: (mode: 'AGENT' | 'SCRIPTED_JUNK' | 'SCRIPTED_PASS') =>
       act(() => (mode === 'SCRIPTED_PASS' ? api.deliverText(id, 'maya', SCRIPTED_PASS_TEXT) : api.deliver(id, mode))),
     confirm: () => act(() => api.confirm(id)),
+    cancel: () => act(() => api.cancel(id, desk === 'seller' ? 'maya' : 'alex')),
+    checkHold: (holdId: string) => act(() => api.checkHold(holdId)),
+    loadReads: () => act(async () => {
+      setReads(true)
+      lastCalls.current = Date.now()
+      setCalls(await api.paypalCalls(id, true))
+    }),
   }
 
-  if (!deal) return <p className="text-slate-600">{error ?? 'Loading the deal…'}</p>
+  if (!deal) return <p className="text-[var(--bm-on-var)]">{error ?? 'Loading the deal…'}</p>
   if (desk === 'judge') return <DealView deal={deal} verifier={verifier} calls={calls} actions={actions} />
   return <RoleDesk role={desk} deal={deal} actions={actions} />
 }
@@ -238,9 +183,15 @@ class ScreenError extends Component<{ children: ReactNode }, { error: Error | nu
 }
 
 export default function App() {
-  const [path, go] = usePath()
+  const [path, hash, go] = usePath()
   const [status, setStatus] = useState<Status | null>(null)
+  const [dealCount, setDealCount] = useState(0)
   useEffect(() => { api.status().then(setStatus).catch(() => setStatus(null)) }, [])
+  useEffect(() => {
+    if (hash.startsWith('#buyer-') || hash.startsWith('#seller-') || hash.startsWith('#judge-')) return
+    window.scrollTo({ top: 0 })
+  }, [path, hash])
+  useEffect(() => { api.contracts().then((rows) => setDealCount(rows.length)).catch(() => setDealCount(0)) }, [path])
   const route = parsePath(path)
 
   useEffect(() => {
@@ -255,20 +206,49 @@ export default function App() {
         : null
   const dealId = route.page === 'deal' || route.page === 'legacy-deal' ? route.id : null
 
+  const screens = (
+    <ScreenError key={path}>
+      {route.page === 'gallery' && <Gallery />}
+      {route.page === 'picker' && <RolePicker go={go} />}
+      {route.page === 'home' && route.desk === 'buyer' && <BuyerHome status={status} hash={hash} go={go} />}
+      {route.page === 'home' && route.desk === 'seller' && <SellerHome hash={hash} go={go} />}
+      {route.page === 'home' && route.desk === 'judge' && <JudgeHome status={status} hash={hash} go={go} />}
+      {route.page === 'deal' && (
+        <div className="mx-auto min-w-0 max-w-7xl px-4 py-6 sm:px-6"><Deal key={route.id + route.desk} id={route.id} desk={route.desk} /></div>
+      )}
+      {route.page === 'legacy-deal' && (
+        stored
+          ? <div className="mx-auto min-w-0 max-w-7xl px-4 py-6 sm:px-6"><Deal key={route.id + stored} id={route.id} desk={stored} /></div>
+          : <RolePicker go={go} dest={(d) => dealPath(d, route.id)} />
+      )}
+    </ScreenError>
+  )
+
+  if (desk) {
+    return (
+      <DeskChrome desk={desk} status={status} dealCount={dealCount} dealId={dealId} hash={hash} go={go}>
+        {screens}
+      </DeskChrome>
+    )
+  }
+
+  if (route.page === 'picker' || route.page === 'legacy-deal') {
+    return (
+      <div className="desk-shell min-h-svh">
+        <header className="sticky top-0 z-40 border-b border-[#e5e7eb] bg-white">
+          <div className="mx-auto flex h-[68px] max-w-7xl items-center px-5 sm:h-[76px] sm:px-10">
+            <BrandLockup />
+          </div>
+        </header>
+        {screens}
+      </div>
+    )
+  }
+
   return (
     <main className="mx-auto flex min-h-svh max-w-7xl flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-5 sm:py-8">
       <Header status={status} desk={desk} dealId={dealId} go={go} />
-      <ScreenError key={path}>
-        {route.page === 'gallery' && <Gallery />}
-        {route.page === 'picker' && <RolePicker go={go} />}
-        {route.page === 'home' && <DeskHome desk={route.desk} status={status} go={go} />}
-        {route.page === 'deal' && <Deal key={route.id + route.desk} id={route.id} desk={route.desk} />}
-        {route.page === 'legacy-deal' && (
-          stored
-            ? <Deal key={route.id + stored} id={route.id} desk={stored} />
-            : <RolePicker go={go} dest={(d) => dealPath(d, route.id)} />
-        )}
-      </ScreenError>
+      {screens}
     </main>
   )
 }

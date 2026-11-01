@@ -6,7 +6,7 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * The PayPal calls Mutual Stake makes. Every money-moving call takes the hold's deterministic
+ * The PayPal calls HireMind makes. Every money-moving call takes the hold's deterministic
  * PayPal-Request-Id (US-17). The only implementation outside tests talks to the real sandbox.
  */
 interface PayPalGateway {

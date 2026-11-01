@@ -1,4 +1,4 @@
-# Mutual Stake web
+# HireMind web
 
 The screen for a deal: the buyer's agent on the left, the two jars in the middle, the seller's agent on the right, and one panel per step below. It shows only what the control plane reports, and the control plane shows only what PayPal has confirmed.
 

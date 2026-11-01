@@ -116,7 +116,31 @@ export interface ResetResult { archivedSessionId: string; session: Session; canc
 
 export interface JobDraft { sentence: string; jobText: string; feeCapMinor: number; deadlineAt: string; verifier: Verifier }
 
-export interface PayPalCall { side: Side; operation: string; method: string; path: string; requestId: string | null; httpStatus: number | null; debugId: string | null }
+export interface PayPalCall {
+  side: Side
+  operation: string
+  method: string
+  path: string
+  requestId: string | null
+  httpStatus: number | null
+  debugId: string | null
+  errorName?: string | null
+  errorIssue?: string | null
+}
+
+/** A verifier run with nothing delivered and nothing at stake. */
+export interface DryRun {
+  outcome: 'PASS' | 'FAIL' | 'ERROR'
+  checks: Check[]
+  summary: string | null
+  failingCheck: string | null
+  error: string | null
+  injectionFlags: string[]
+  runtime: string
+  harnessSha256: string
+  sourceSha256: string
+  durationMs: number
+}
 
 /** A refusal from the control plane, with its stable code (e.g. no_credentials, over_cap). */
 export class ApiError extends Error {
@@ -146,8 +170,9 @@ export const api = {
   status: () => call<Status>('GET', '/api/status'),
   contracts: () => call<Contract[]>('GET', '/api/contracts'),
   contract: (id: string) => call<Contract>('GET', `/api/contracts/${id}`),
-  paypalCalls: (id: string) => call<PayPalCall[]>('GET', `/api/contracts/${id}/paypal-calls`),
+  paypalCalls: (id: string, reads = false) => call<PayPalCall[]>('GET', `/api/contracts/${id}/paypal-calls${reads ? '?reads=true' : ''}`),
   verifier: (id: string) => call<Verifier>('GET', `/api/verifiers/${id}`),
+  dryRun: (id: string, text: string) => call<DryRun>('POST', `/api/verifiers/${id}/dry-run`, { text }),
   compile: (jobText: string, test: unknown) => call<Verifier>('POST', '/api/verifiers/compile', { jobText, test }),
   open: (buyer: string, seller: string, jobText: string, feeCapMinor: number) =>
     call<Contract>('POST', '/api/contracts', { seller, jobText, feeCapMinor }, buyer),
@@ -161,5 +186,6 @@ export const api = {
   deliverText: (id: string, party: string, text: string) => call<Contract>('POST', `/api/contracts/${id}/deliveries`, { text }, party),
   confirm: (id: string) => call<Contract>('POST', `/api/contracts/${id}/confirm`),
   cancel: (id: string, party: string) => call<Contract>('POST', `/api/contracts/${id}/cancel`, undefined, party),
+  checkHold: (id: string) => call<{ hold: string; queued: string }>('POST', `/api/holds/${id}/check`),
   resetDemo: () => call<ResetResult>('POST', '/api/demo/reset'),
 }

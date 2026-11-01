@@ -1,4 +1,4 @@
-# Mutual Stake
+# HireMind
 
 PayPal AI Hackathon: [Build what's next with PayPal and AI](https://paypalaihackathon.devpost.com/)
 

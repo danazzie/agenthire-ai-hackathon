@@ -20,7 +20,7 @@ data class MutualStakeProperties(
         val clientSecret: String = "",
         val baseUrl: String = "https://api-m.sandbox.paypal.com",
         val webhookId: String = "",
-        val brandName: String = "Mutual Stake (sandbox)",
+        val brandName: String = "HireMind (sandbox)",
     ) {
         val configured: Boolean get() = clientId.isNotBlank() && clientSecret.isNotBlank()
         val webhooksConfigured: Boolean get() = webhookId.isNotBlank()

@@ -110,13 +110,13 @@ class PayoutHandler(
             receiverEmail = recipient.paypalEmail,
             // US-17: exactly what PayPal captured, read back from the capture.
             amount = requireNotNull(hold.captured) { "no captured amount on ${hold.id}" },
-            subject = if (fee) "Mutual Stake: you have been paid" else "Mutual Stake: the seller bond is yours",
+            subject = if (fee) "HireMind: you have been paid" else "HireMind: the seller bond is yours",
             message = if (fee) {
                 "Your delivery passed its agreed test, so the buyer's fee was captured and paid to you. Sandbox only."
             } else {
                 "The delivery failed its agreed test or never came, so the seller's bond was captured and paid to you. Sandbox only."
             },
-            note = if (fee) "Fee for work that passed its agreed test (Mutual Stake sandbox)." else "Seller bond, paid to you as compensation (Mutual Stake sandbox).",
+            note = if (fee) "Fee for work that passed its agreed test (HireMind sandbox)." else "Seller bond, paid to you as compensation (HireMind sandbox).",
         )
         val batchId = try {
             paypal.createPayout(request).batchId

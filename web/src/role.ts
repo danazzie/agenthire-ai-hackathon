@@ -18,6 +18,8 @@ export type Route =
   | { page: 'gallery' }
 
 export function parsePath(path: string): Route {
+  const clean = path.split(/[?#]/)[0] || '/'
+  path = clean
   if (path === '/gallery') return { page: 'gallery' }
   if (path === '/buyer') return { page: 'home', desk: 'buyer' }
   if (path === '/seller') return { page: 'home', desk: 'seller' }

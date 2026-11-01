@@ -26,7 +26,7 @@ class PayPalReturnController(private val holds: HoldRepository, private val outb
         found?.let { outbox.enqueue(it.id, OutboxType.CHECK_ORDER) }
         return page(
             "Approved with PayPal",
-            "Nothing has been charged. Mutual Stake is now asking PayPal whether the ${found?.side?.label ?: "hold"} is in place; this page does not decide that.",
+            "Nothing has been charged. HireMind is now asking PayPal whether the ${found?.side?.label ?: "hold"} is in place; this page does not decide that.",
             found?.contractId,
         )
     }
@@ -43,7 +43,7 @@ class PayPalReturnController(private val holds: HoldRepository, private val outb
             "<p>You can close this tab.</p>"
         }
         return """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mutual Stake</title></head><body style="font:16px/1.5 system-ui,sans-serif;margin:3rem auto;max-width:34rem;padding:0 1rem">
+<title>HireMind</title></head><body style="font:16px/1.5 system-ui,sans-serif;margin:3rem auto;max-width:34rem;padding:0 1rem">
 <h1 style="font-size:1.4rem">${HtmlUtils.htmlEscape(title)}</h1><p>${HtmlUtils.htmlEscape(body)}</p>$back</body></html>"""
     }
 }

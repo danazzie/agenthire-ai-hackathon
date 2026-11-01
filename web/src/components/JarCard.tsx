@@ -58,14 +58,14 @@ export function JarCard({ hold, title, party }: { hold: Hold | null; title: stri
   const jar: Jar = hold?.jar ?? 'EMPTY'
   const look = LOOK[jar]
   return (
-    <section className="@container flex min-w-0 flex-1 flex-col items-center rounded-sm border border-rule bg-paper px-4 py-5" aria-label={`${title} jar`}>
+    <section className="@container flex min-w-0 flex-col items-center rounded-2xl bg-white px-5 py-6 shadow-sm" aria-label={`${title} jar`}>
       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{title}</div>
-      <div className="mt-0.5 text-sm text-ink-soft">{party}</div>
+      <div className="mt-0.5 break-words text-center text-sm text-ink-soft">{party}</div>
       <JarGlyph jar={jar} id={hold?.id ?? title} />
-      <div className={`font-display max-w-full whitespace-nowrap text-center text-base font-medium leading-none tracking-tight @[12rem]:text-lg @[14rem]:text-2xl @[20rem]:text-4xl ${look.text}`}>{JAR_LABEL[jar]}</div>
-      <div className="font-display mt-1 text-3xl tabular-nums">{money(hold?.amountMinor)}</div>
+      <div className={`max-w-full text-balance text-center text-2xl font-semibold leading-tight tracking-tight @[18rem]:text-4xl ${look.text}`}>{JAR_LABEL[jar]}</div>
+      <div className="mt-1 text-3xl font-semibold tabular-nums">{money(hold?.amountMinor)}</div>
       <div className="mt-2 min-h-10 px-1 text-balance text-center text-sm leading-snug text-ink-soft">{hold?.caption ?? 'not held yet'}</div>
-      <div className="mt-2 w-full truncate text-center font-mono text-[11px] text-muted" title={hold?.paypalOrderId ?? ''}>
+      <div className="mt-2 w-full break-all text-center font-mono text-[11px] text-muted" title={hold?.paypalOrderId ?? ''}>
         {hold?.paypalOrderId ? `order ${hold.paypalOrderId}` : 'no PayPal order yet'}
       </div>
     </section>

@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Warm Editorial Escrow — Stitch design system for Mutual Stake.
+/* Warm Editorial Escrow — Stitch design system for HireMind.
    State words always accompany colour. */
 @theme {
   --color-canvas: #f4f1ea;
@@ -27,7 +27,63 @@
 html { background: var(--color-canvas); color: var(--color-ink); }
 body { margin: 0; font-family: var(--font-sans); }
 .font-display { font-family: var(--font-display); }
-:focus-visible { outline: 2px solid #1d5c42; outline-offset: 2px; }
+:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+/* Shared desk chrome — Stitch Agents Marketplace tokens for buyer, seller and judge. */
+.desk-shell {
+  --bm-lowest: #ffffff;
+  --bm-low: #eef2f6;
+  --bm-highest: #e5e7eb;
+  --bm-primary: #2563eb;
+  --bm-primary-c: #2563eb;
+  --bm-on: #0f172a;
+  --bm-on-var: #64748b;
+  --bm-on-primary-c: #ffffff;
+  background: var(--bm-low);
+  color: var(--bm-on);
+  font-family: "Plus Jakarta Sans", var(--font-sans);
+  min-width: 0;
+  max-width: 100%;
+}
+/* Icon names are the ligature text. Hide them until the face is ready so a late font cannot paint "ed" / "lo" / "filt". */
+.desk-shell .material-symbols-outlined {
+  display: inline-block;
+  overflow: hidden;
+  width: 1em;
+  height: 1em;
+  max-width: 1em;
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  user-select: none;
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  visibility: hidden;
+}
+html.icons-ready .desk-shell .material-symbols-outlined {
+  visibility: visible;
+}
+.desk-metrics { scrollbar-width: none; }
+.desk-metrics::-webkit-scrollbar { display: none; }
+.desk-shell .font-display { font-family: "Plus Jakarta Sans", var(--font-sans); }
+.desk-shell .border-rule { border-color: var(--bm-highest); }
+.desk-shell .bg-paper { background: #ffffff; }
+.desk-shell .bg-canvas,
+.desk-shell .bg-sunken { background: var(--bm-low); }
+/* Older desk cards share the Figma card: white, 12px, hairline, soft shadow. */
+.desk-shell .rounded-2xl.bg-white.shadow-sm,
+.desk-shell .rounded-2xl.bg-white.shadow-2xl {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
