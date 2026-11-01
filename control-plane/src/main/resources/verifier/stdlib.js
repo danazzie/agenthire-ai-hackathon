@@ -1,4 +1,4 @@
-// ---- Mutual Stake verifier library, inlined so the hash covers it --------------------------------------
+// ---- HireMind verifier library, inlined so the hash covers it --------------------------------------
 const ms = (() => {
   // Words are whitespace-separated runs that contain at least one letter or digit.
   const words = (text) => text.normalize("NFC").split(/\s+/u).filter((t) => /[\p{L}\p{N}]/u.test(t));

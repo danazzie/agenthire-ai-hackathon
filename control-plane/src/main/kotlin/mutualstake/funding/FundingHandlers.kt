@@ -32,8 +32,8 @@ class CreateOrderHandler(
                 requestId = hold.requestId("create"),
                 referenceId = hold.side.name,
                 description = when (hold.side) {
-                    HoldSide.BUYER_FEE -> "Mutual Stake buyer fee: held, not charged, until the agreed test decides"
-                    HoldSide.SELLER_BOND -> "Mutual Stake seller bond: held, not charged, unless the work fails its test"
+                    HoldSide.BUYER_FEE -> "HireMind buyer fee: held, not charged, until the agreed test decides"
+                    HoldSide.SELLER_BOND -> "HireMind seller bond: held, not charged, unless the work fails its test"
                 },
                 amount = hold.amount,
                 customId = hold.customId,

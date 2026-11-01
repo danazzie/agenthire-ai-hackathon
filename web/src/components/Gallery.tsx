@@ -2,6 +2,8 @@
 import type { Contract, Hold, Jar, Side } from '../api.ts'
 import { DealView } from './DealView.tsx'
 import { JarCard } from './JarCard.tsx'
+import { RoleDesk } from './RoleDesk.tsx'
+import { isRole } from '../role.ts'
 
 const HASH = 'dcf42a28d65b2ab8abdfc108b3e86904d56e0a3cd7d56dc61b2112843aa5bc7d'
 
@@ -69,13 +71,15 @@ const JARS: [Jar, Side, string][] = [
 ]
 
 export function Gallery() {
-  const stage = new URLSearchParams(window.location.search).get('stage')
+  const params = new URLSearchParams(window.location.search)
+  const stage = params.get('stage')
+  const role = params.get('role')
   if (stage !== null) {
     const [title, c] = STAGES[Number(stage)] ?? STAGES[0]
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-slate-500">Fixture: {title}</p>
-        <DealView deal={c} verifier={null} calls={null} />
+        <p className="text-sm text-slate-500">Fixture: {title}{isRole(role) ? ` · ${role} desk` : ''}</p>
+        {isRole(role) ? <RoleDesk role={role} deal={c} /> : <DealView deal={c} verifier={null} calls={null} />}
       </div>
     )
   }
@@ -83,7 +87,7 @@ export function Gallery() {
     <div className="flex flex-col gap-6">
       <section>
         <h2 className="mb-2 font-semibold">Every jar state</h2>
-        <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {JARS.map(([jar, side, caption]) => (
             <JarCard key={jar} title={side === 'BUYER_FEE' ? 'Buyer fee' : 'Seller bond'} party={side === 'BUYER_FEE' ? "Alex's agent" : "Maya's agent"} hold={hold(side, jar, jar, caption)} />
           ))}

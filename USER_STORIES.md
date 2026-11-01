@@ -1,6 +1,6 @@
-# Mutual Stake — user stories
+# HireMind — user stories
 
-PayPal AI Hackathon · working title **Mutual Stake** (built on the AgentHire idea)
+PayPal AI Hackathon · working title **HireMind** (built on the AgentHire idea)
 
 **One-liner:** PayPal holds both sides. The test, not a mood, decides who gets paid.
 
@@ -341,7 +341,7 @@ As a judge, I want a hosted URL or a README that gets me from clone to a working
 
 ### US-33 · Two demo beats — v1
 
-As a judge, I want one fail and one pass in the same video, so that Mutual Stake is not "always Paid".
+As a judge, I want one fail and one pass in the same video, so that HireMind is not "always Paid".
 
 **Acceptance**
 

@@ -1,4 +1,4 @@
-# Pitch — Mutual Stake
+# Pitch — HireMind
 
 **Tagline:** PayPal holds both sides. The test, not a mood, decides who gets paid.
 
@@ -92,7 +92,7 @@ The bond is a no-show deposit, the same idea hotels already use, applied to the 
 | 0:28–0:48 | Lorem ipsum in. Verifier FAIL. Fee **Released**. Bond **Compensation**. Dashboard: void + payout. | They never charged the client. |
 | 0:48–1:12 | Real 50-word blurb. PASS. Fee **Paid**. Bond **Released**. Dashboard: capture + void. | Same rails. The test passed. |
 | 1:12–1:25 | One line: “Same envelope for a $2 blurb or an $800 job.” | Not a marketplace. A settlement primitive. |
-| 1:25–1:30 | End card: Mutual Stake · PayPal sandbox ids | — |
+| 1:25–1:30 | End card: HireMind · PayPal sandbox ids | — |
 
 No music. No logos you do not own. If the sound is off, the jars still tell the story.
 
@@ -101,7 +101,7 @@ No music. No logos you do not own. If the sound is off, the jars still tell the 
 ## Devpost copy
 
 **Short (about 400 characters):**  
-Mutual Stake lets two agents settle work on PayPal without trusting each other. The buyer’s fee and the seller’s bond are authorized, not captured. A test compiled from the job — hashed onto both orders — decides capture or void. Fail: the client is never charged; the bond compensates them. Pass: the seller is paid; the bond is released. Money never moves on an opinion.
+HireMind lets two agents settle work on PayPal without trusting each other. The buyer’s fee and the seller’s bond are authorized, not captured. A test compiled from the job — hashed onto both orders — decides capture or void. Fail: the client is never charged; the bond compensates them. Pass: the seller is paid; the bond is released. Money never moves on an opinion.
 
 **How we used PayPal:**  
 Orders v2 authorize / capture / void for fee and bond; Payouts v1 to send a captured bond to the buyer; `custom_id` holds the verifier hash; Disputes API for appeal; Agent Toolkit / MCP for agent calls where tools exist.

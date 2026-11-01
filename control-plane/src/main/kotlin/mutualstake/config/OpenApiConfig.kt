@@ -22,7 +22,7 @@ class OpenApiConfig(private val props: MutualStakeProperties) {
     fun openApi(): OpenAPI = OpenAPI()
         .info(
             Info()
-                .title("Mutual Stake API")
+                .title("HireMind API")
                 .version("0.1.0")
                 .license(License().name("MIT").url("https://opensource.org/licenses/MIT"))
                 .description(

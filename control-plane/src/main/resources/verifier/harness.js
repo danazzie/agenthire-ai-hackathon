@@ -1,4 +1,4 @@
-// Mutual Stake verifier harness. Fixed, and hashed into every run record.
+// HireMind verifier harness. Fixed, and hashed into every run record.
 //
 // Input: one JSON message on stdin, {nonce, source, text}.
 //   source  the agreed verifier: a function body that defines verify(text)

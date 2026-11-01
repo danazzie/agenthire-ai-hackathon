@@ -41,9 +41,9 @@ class PayPalSandboxTest {
         assumeTrue(env["PAYPAL_CLIENT_ID"].orEmpty().isNotBlank(), "no sandbox credentials in .env")
         val props = MutualStakeProperties(paypal = MutualStakeProperties.PayPal(clientId = env.getValue("PAYPAL_CLIENT_ID"), clientSecret = env.getValue("PAYPAL_CLIENT_SECRET")))
         val gateway = PayPalRestGateway(RestClient.builder(), props, noLog, jacksonObjectMapper(), Clock.systemUTC())
-        val hash = Sha256.hex("Mutual Stake sandbox test verifier ${UUID.randomUUID()}")
+        val hash = Sha256.hex("HireMind sandbox test verifier ${UUID.randomUUID()}")
         val request = CreateOrderRequest(
-            UUID.randomUUID(), "ms-sandboxtest-${UUID.randomUUID()}:create", "BUYER_FEE", "Mutual Stake sandbox test order: never approved",
+            UUID.randomUUID(), "ms-sandboxtest-${UUID.randomUUID()}:create", "BUYER_FEE", "HireMind sandbox test order: never approved",
             Money(150), hash, "http://localhost:8088/paypal/return?hold=test", "http://localhost:8088/paypal/cancel?hold=test",
         )
 

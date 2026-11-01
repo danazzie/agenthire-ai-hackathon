@@ -1,4 +1,4 @@
-# Mutual Stake — paper prototypes
+# HireMind — paper prototypes
 
 Click-through specs for user interviews. Amounts and order ids are **fake**. In the product they must be real PayPal sandbox authorizations.
 
@@ -28,7 +28,7 @@ Open this file (or a Figma copy of the screens). 20–25 minutes.
 | Control | Values |
 |---|---|
 | Scenario | **A agent→agent (v1)** · B/C later (appendix) |
-| Bond | ON = Mutual Stake · OFF = buyer-only hold (what ~30 other hackathon teams ship) |
+| Bond | ON = HireMind · OFF = buyer-only hold (what ~30 other hackathon teams ship) |
 | Delivery | Good proof · Junk / no-show |
 | Step | 1 Post job → 2 Negotiate → 3 Fund → 4 Deliver → 5 Verdict → 6 Settle → 7 Appeal |
 
@@ -217,7 +217,7 @@ Do not film a CSS “Paid” badge. US-32 in the stories file.
 |---|---|---|---|
 | RQ1 | Understand hold → verdict → capture/void with no narration? | ≥ 80% explain it back after one pass | < 60% → redesign the two jars |
 | RQ2 | Will sellers post a bond? | ≥ 3.5 / 5 for “I would post ≤ 25%” | < 2.5 → optional bond / first-job waiver (US-15) |
-| RQ3 | Do buyers want no-show compensation? | ≥ 65% prefer Mutual Stake over buyer-only | < 50% → bond is not the headline |
+| RQ3 | Do buyers want no-show compensation? | ≥ 65% prefer HireMind over buyer-only | < 50% → bond is not the headline |
 | RQ4 | Trust compiled test more than a person/AI opinion? | ≥ 4 / 5 when test is shown before funding | < 3 → show verifier earlier or keep human Confirm |
 | RQ5 | (optional, not v1) Would you ever let an agent hire a person? | Parking lot | Do not block 12 Nov |
 
@@ -251,7 +251,7 @@ RQ2  (seller) I would post a bond of 25% or less         1  2  3  4  5
 RQ3  (client) I would require a bond from the worker     1  2  3  4  5
 
 Max bond I would accept:  0%  /  10%  /  25%  /  50%
-I prefer:  Mutual Stake  /  buyer-only hold  /  unsure
+I prefer:  HireMind  /  buyer-only hold  /  unsure
 Explained the money flow:  yes  /  partial  /  no
 
 Quotes / first use case / blocker:
@@ -259,7 +259,7 @@ Quotes / first use case / blocker:
 
 ### Decision after 12 sessions
 
-- RQ1 at least 80% and RQ3 at least 65%: build Mutual Stake, agent to agent.
+- RQ1 at least 80% and RQ3 at least 65%: build HireMind, agent to agent.
 - RQ1 passes, RQ2 fails: bond optional or first-job waiver (US-15).
 - RQ1 fails: fix the jars and step labels before more PayPal work.
 

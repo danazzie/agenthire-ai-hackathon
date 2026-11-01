@@ -11,7 +11,7 @@ object VerifierCompiler {
     private val library: String = requireNotNull(javaClass.getResource("/verifier/stdlib.js")) { "verifier library missing" }.readText()
 
     fun compile(jobText: String, spec: VerifierSpec): String = buildString {
-        append("// Mutual Stake verifier, compiler v$VERSION.\n")
+        append("// HireMind verifier, compiler v$VERSION.\n")
         append("// Job: ${oneLine(jobText)}\n")
         append("// Test: ${spec.canonical()}\n")
         append("//\n")

@@ -3,7 +3,7 @@ package mutualstake.agents
 /** The agents' standing instructions. Everything that varies per deal goes in the user turn, as data. */
 internal object Prompts {
     private const val PROTOCOL =
-        "Mutual Stake settles small jobs between two agents on PayPal. The buyer's fee and the seller's bond are both " +
+        "HireMind settles small jobs between two agents on PayPal. The buyer's fee and the seller's bond are both " +
             "held, not charged. An agreed test, compiled into code before anyone is charged, decides the outcome: if the " +
             "delivery passes, the fee is paid to the seller and the bond released; if it fails or never comes, the fee is " +
             "released and the bond is paid to the buyer."

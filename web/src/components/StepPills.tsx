@@ -1,35 +1,34 @@
-import { STEPS, type Step } from '../model.ts'
+import type { Step } from '../model.ts'
+import { STEPS } from '../model.ts'
 
 /** 1 Post job → 2 Negotiate → … → 7 Appeal. The current step comes from the deal's state; Appeal is not built yet. */
 export function StepPills({ current, shown, onShow }: { current: Step; shown: Step; onShow: (s: Step) => void }) {
   const at = STEPS.indexOf(current)
   return (
-    <nav aria-label="Steps" className="flex flex-wrap items-center gap-1.5">
+    <nav aria-label="Steps" className="desk-metrics flex min-w-0 gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
       {STEPS.map((step, i) => {
         const done = i < at
         const now = i === at
         const unbuilt = step === 'Appeal'
-        const base = 'rounded-full border px-3 py-1 text-sm font-medium transition'
         const tone = now
-          ? 'border-slate-900 bg-slate-900 text-white'
+          ? 'bg-[#2563eb] text-white'
           : done
-            ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
-            : 'border-slate-300 bg-white text-slate-500'
+            ? 'bg-white text-[var(--bm-on)] shadow-sm'
+            : 'bg-white text-[var(--bm-on-var)] shadow-sm'
         return (
-          <span key={step} className="flex items-center gap-1.5">
-            <button
-              type="button"
-              disabled={unbuilt}
-              onClick={() => onShow(step)}
-              aria-current={now ? 'step' : undefined}
-              title={unbuilt ? 'Appeal to PayPal Disputes is not built in this version' : undefined}
-              className={`${base} ${tone} ${shown === step && !now ? 'ring-2 ring-slate-400' : ''} ${unbuilt ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-            >
-              {done ? '✓ ' : `${i + 1} `}
-              {step}
-            </button>
-            {i < STEPS.length - 1 && <span className="text-slate-400" aria-hidden>→</span>}
-          </span>
+          <button
+            key={step}
+            type="button"
+            disabled={unbuilt}
+            onClick={() => onShow(step)}
+            aria-current={now ? 'step' : undefined}
+            title={unbuilt ? 'Appeal to PayPal Disputes is not built in this version' : undefined}
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-xl px-3 text-sm font-semibold ${tone} ${shown === step && !now ? 'ring-2 ring-[var(--bm-primary-c)]' : ''} ${unbuilt ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+          >
+            {done ? '✓ ' : `${i + 1} `}
+            {step}
+            {unbuilt && <span className="ml-2 text-[10px] tracking-wide">NOT BUILT</span>}
+          </button>
         )
       })}
     </nav>
