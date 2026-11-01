@@ -116,7 +116,14 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 3. After the first deploy, set `WEB_URL` on `mutual-stake-api` to the static site's address.
 4. Set `VITE_API_URL` on `mutual-stake-web` to the API's address, then redeploy the site.
 
-Later merges to `main` redeploy both services. On the free plan, the API sleeps after 15 idle minutes and takes about a minute to wake. The free database expires after 30 days. The API reads Render's database URL (`DATABASE_URL`) and its own public address (`RENDER_EXTERNAL_URL`, which PayPal's return pages use) by itself.
+Later merges to `main` redeploy both services.
+
+The Blueprint uses paid instances, about $13 a month in total; the static site is free.
+
+- **API** (0.5 CPU, 512 MB, $7): it never sleeps, so the outbox keeps polling PayPal.
+- **Postgres** (256 MB, $6): it does not expire.
+
+The free plans also work if you set `plan: free`, but the free API sleeps after 15 idle minutes and the free database expires after 30 days. The API reads Render's database URL (`DATABASE_URL`) and its own public address (`RENDER_EXTERNAL_URL`, which PayPal's return pages use) by itself.
 
 ## Layout
 
