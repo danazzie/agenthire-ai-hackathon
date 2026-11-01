@@ -10,7 +10,8 @@ databases:
   - name: mutual-stake-db
     databaseName: mutualstake
     user: mutualstake
-    plan: free
+    # Basic, 256 MB ($6 a month): unlike the free plan, it does not expire after 30 days.
+    plan: 0.1c-256mb
     postgresMajorVersion: "16"
     # Only the API reaches it, over Render's private network.
     ipAllowList: []
@@ -19,7 +20,9 @@ services:
   - type: web
     name: mutual-stake-api
     runtime: docker
-    plan: free
+    # Starter, 0.5 CPU and 512 MB ($7 a month): unlike the free plan, it never sleeps, so the outbox keeps
+    # polling PayPal. The image caps the JVM heap to leave room for the verifier's Deno process.
+    plan: 0.5c-512mb
     branch: main
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/status
