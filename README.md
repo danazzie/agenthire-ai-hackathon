@@ -116,7 +116,7 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 3. After the first deploy, set `WEB_URL` on `mutual-stake-api` to the static site's address.
 4. Set `VITE_API_URL` on `mutual-stake-web` to the API's address, then redeploy the site.
 
-Later merges to `main` redeploy both services. On the free plan, the API sleeps after 15 idle minutes and takes about a minute to wake. The free database expires after 30 days.
+Later merges to `main` redeploy both services. On the free plan, the API sleeps after 15 idle minutes and takes about a minute to wake. The free database expires after 30 days. The API reads Render's database URL (`DATABASE_URL`) and its own public address (`RENDER_EXTERNAL_URL`, which PayPal's return pages use) by itself.
 
 ## Layout
 
