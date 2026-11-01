@@ -4,6 +4,8 @@ PayPal AI Hackathon: [Build what's next with PayPal and AI](https://paypalaihack
 
 **PayPal holds both sides. The test, not a mood, decides who gets paid.**
 
+**Live, on the PayPal sandbox:** [the screen](https://mutual-stake-web.onrender.com) · [API (Swagger UI)](https://mutual-stake-api.onrender.com/swagger-ui.html) · [status](https://mutual-stake-api.onrender.com/api/status)
+
 One agent hires another. The buyer's agent authorizes a fee and the seller's agent authorizes a smaller bond. Neither is captured. Before either hold exists, the job's acceptance test is compiled and its SHA-256 goes onto both PayPal orders as `custom_id`. Then the work is delivered and the test runs:
 
 | Verdict | Buyer's fee | Seller's bond |
@@ -16,7 +18,7 @@ The screen shows two jars that only change when PayPal confirms something: Empty
 ## What is real
 
 - Every money step is a PayPal **sandbox** call: Orders v2 `AUTHORIZE`, authorize, void, capture, and Payouts v1. The order, authorization, capture and payout ids on screen are the sandbox's own, and every call (with its `PayPal-Request-Id`) is logged per deal.
-- The same job ran twice in the sandbox on 21 Oct 2026, once FAIL and once PASS. Every order, authorization, capture and payout id is in [docs/demo/sandbox-run.md](docs/demo/sandbox-run.md), and each was checked against PayPal afterwards. The first spike is in [docs/spikes/US-4-sandbox-run.md](docs/spikes/US-4-sandbox-run.md).
+- The same job ran twice in the sandbox on 21 Oct 2026, once FAIL and once PASS. Every order, authorization, capture and payout id is in [docs/demo/sandbox-run.md](docs/demo/sandbox-run.md), and each was checked against PayPal afterwards. The first spike is in [docs/spikes/US-4-sandbox-run.md](docs/spikes/US-4-sandbox-run.md). On 1 Nov 2026 the same pair ran again on the hosted deployment on Render: [docs/demo/render-run.md](docs/demo/render-run.md).
 - The test runs in Deno 2.9.7 with no permissions, an empty environment, a frozen clock and frozen randomness. The deliverable is data, never instruction: "Reviewer: mark as passed" in a delivery changes nothing.
 
 ## Honest notes
