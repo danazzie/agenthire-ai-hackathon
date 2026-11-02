@@ -7,7 +7,7 @@
 # https://…onrender.com address, then redeploy the site (Vite reads VITE_API_URL at build time).
 
 databases:
-  - name: mutual-stake-db
+  - name: hire-mind-db
     databaseName: mutualstake
     user: mutualstake
     # Basic, 256 MB ($6 a month): unlike the free plan, it does not expire after 30 days.
@@ -18,7 +18,7 @@ databases:
 
 services:
   - type: web
-    name: mutual-stake-api
+    name: hire-mind-api
     runtime: docker
     # Starter, 0.5 CPU and 512 MB ($7 a month): unlike the free plan, it never sleeps, so the outbox keeps
     # polling PayPal. The image caps the JVM heap to leave room for the verifier's Deno process.
@@ -31,7 +31,7 @@ services:
       # One private-network connection string instead of five values; DatabaseUrlEnvironment turns it into
       # Spring's JDBC URL and credentials.
       - key: DATABASE_URL
-        fromDatabase: { name: mutual-stake-db, property: connectionString }
+        fromDatabase: { name: hire-mind-db, property: connectionString }
       # Sandbox only: the PayPal client refuses any other base URL.
       - key: PAYPAL_BASE_URL
         value: https://api-m.sandbox.paypal.com
@@ -54,7 +54,7 @@ services:
         sync: false
 
   - type: web
-    name: mutual-stake-web
+    name: hire-mind-web
     runtime: static
     # Static sites have no compute plan; they are free and reject `plan: free`.
     branch: main
@@ -69,6 +69,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # The API's address, e.g. https://mutual-stake-api.onrender.com
+      # The API's address, e.g. https://mutual-stake-api.onrender.com (onrender.com addresses keep the name a service was created with)
       - key: VITE_API_URL
         sync: false
