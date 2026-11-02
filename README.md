@@ -115,8 +115,8 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 
 1. Click the button, or in Render choose **New → Blueprint**, pick this repo, and set the branch to `main`. The first time, GitHub will ask you to install the [Render GitHub App](https://github.com/apps/render) on `danazzie/agenthire-ai-hackathon`.
 2. Enter the sandbox values when asked (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BUYER_EMAIL`, `PAYPAL_SELLER_EMAIL`; `ANTHROPIC_API_KEY` is optional).
-3. After the first deploy, set `WEB_URL` on `mutual-stake-api` to the static site's address.
-4. Set `VITE_API_URL` on `mutual-stake-web` to the API's address, then redeploy the site.
+3. After the first deploy, set `WEB_URL` on `hire-mind-api` to the static site's address.
+4. Set `VITE_API_URL` on `hire-mind-web` to the API's address, then redeploy the site.
 
 Later merges to `main` redeploy both services.
 
