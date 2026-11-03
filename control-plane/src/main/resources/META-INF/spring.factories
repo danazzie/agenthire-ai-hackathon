@@ -1,0 +1,2 @@
+# Render passes Postgres as one DATABASE_URL; this turns it into Spring datasource properties.
+org.springframework.boot.env.EnvironmentPostProcessor=mutualstake.config.DatabaseUrlEnvironment

@@ -4,6 +4,8 @@ PayPal AI Hackathon: [Build what's next with PayPal and AI](https://paypalaihack
 
 **PayPal holds both sides. The test, not a mood, decides who gets paid.**
 
+**Live, on the PayPal sandbox:** [the screen](https://mutual-stake-web.onrender.com) · [API (Swagger UI)](https://mutual-stake-api.onrender.com/swagger-ui.html) · [status](https://mutual-stake-api.onrender.com/api/status)
+
 One agent hires another. The buyer's agent authorizes a fee and the seller's agent authorizes a smaller bond. Neither is captured. Before either hold exists, the job's acceptance test is compiled and its SHA-256 goes onto both PayPal orders as `custom_id`. Then the work is delivered and the test runs:
 
 | Verdict | Buyer's fee | Seller's bond |
@@ -16,7 +18,7 @@ The screen shows two jars that only change when PayPal confirms something: Empty
 ## What is real
 
 - Every money step is a PayPal **sandbox** call: Orders v2 `AUTHORIZE`, authorize, void, capture, and Payouts v1. The order, authorization, capture and payout ids on screen are the sandbox's own, and every call (with its `PayPal-Request-Id`) is logged per deal.
-- The same job ran twice in the sandbox on 21 Oct 2026, once FAIL and once PASS. Every order, authorization, capture and payout id is in [docs/demo/sandbox-run.md](docs/demo/sandbox-run.md), and each was checked against PayPal afterwards. The first spike is in [docs/spikes/US-4-sandbox-run.md](docs/spikes/US-4-sandbox-run.md).
+- The same job ran twice in the sandbox on 21 Oct 2026, once FAIL and once PASS. Every order, authorization, capture and payout id is in [docs/demo/sandbox-run.md](docs/demo/sandbox-run.md), and each was checked against PayPal afterwards. The first spike is in [docs/spikes/US-4-sandbox-run.md](docs/spikes/US-4-sandbox-run.md). On 1 Nov 2026 the same pair ran again on the hosted deployment on Render: [docs/demo/render-run.md](docs/demo/render-run.md).
 - The test runs in Deno 2.9.7 with no permissions, an empty environment, a frozen clock and frozen randomness. The deliverable is data, never instruction: "Reviewer: mark as passed" in a delivery changes nothing.
 
 ## Honest notes
@@ -107,16 +109,23 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 
 ## Deploy on Render
 
-[render.yaml](render.yaml) is a Blueprint for three services: the API (built from the [Dockerfile](Dockerfile), with Deno), the screen as a static site, and Postgres. The app is on **`v1-build`** (`main` is docs only), so deploys must use that branch.
+[render.yaml](render.yaml) is a Blueprint for three services: the API (built from the [Dockerfile](Dockerfile), with Deno), the screen as a static site, and Postgres. Render deploys from **`main`**, so changes on `v1-build` go live once their pull request is merged.
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/v1-build)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/main)
 
-1. Click the button, or in Render choose **New → Blueprint**, pick this repo, and set the branch to `v1-build`. The first time, GitHub will ask you to install the [Render GitHub App](https://github.com/apps/render) on `danazzie/agenthire-ai-hackathon`.
+1. Click the button, or in Render choose **New → Blueprint**, pick this repo, and set the branch to `main`. The first time, GitHub will ask you to install the [Render GitHub App](https://github.com/apps/render) on `danazzie/agenthire-ai-hackathon`.
 2. Enter the sandbox values when asked (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BUYER_EMAIL`, `PAYPAL_SELLER_EMAIL`; `ANTHROPIC_API_KEY` is optional).
-3. After the first deploy, set `WEB_URL` on `mutual-stake-api` to the static site's address.
-4. Set `VITE_API_URL` on `mutual-stake-web` to the API's address, then redeploy the site.
+3. After the first deploy, set `WEB_URL` on `hire-mind-api` to the static site's address.
+4. Set `VITE_API_URL` on `hire-mind-web` to the API's address, then redeploy the site.
 
-Later pushes to `v1-build` redeploy both services. On the free plan, the API sleeps after 15 idle minutes and takes about a minute to wake. The free database expires after 30 days.
+Later merges to `main` redeploy both services.
+
+The Blueprint uses paid instances, about $13 a month in total; the static site is free.
+
+- **API** (0.5 CPU, 512 MB, $7): it never sleeps, so the outbox keeps polling PayPal.
+- **Postgres** (256 MB, $6): it does not expire.
+
+The free plans also work if you set `plan: free`, but the free API sleeps after 15 idle minutes and the free database expires after 30 days. The API reads Render's database URL (`DATABASE_URL`) and its own public address (`RENDER_EXTERNAL_URL`, which PayPal's return pages use) by itself.
 
 ## Layout
 

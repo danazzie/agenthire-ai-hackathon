@@ -1,40 +1,37 @@
 # Render Blueprint: the control plane (Docker), the screen (static site) and Postgres.
-# The app lives on v1-build (main is docs only). Deploy from that branch:
-#   https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/v1-build
-# or New → Blueprint → this repo → branch v1-build.
+# Render deploys from main; work lands there through pull requests from v1-build.
+#   https://render.com/deploy?repo=https://github.com/danazzie/agenthire-ai-hackathon/tree/main
+# or New → Blueprint → this repo → branch main.
 # Render asks for every `sync: false` value; none is ever committed.
 # After the first deploy, set WEB_URL on the API and VITE_API_URL on the site to each other's
 # https://…onrender.com address, then redeploy the site (Vite reads VITE_API_URL at build time).
 
 databases:
-  - name: mutual-stake-db
+  - name: hire-mind-db
     databaseName: mutualstake
     user: mutualstake
-    plan: free
+    # Basic, 256 MB ($6 a month): unlike the free plan, it does not expire after 30 days.
+    plan: 0.1c-256mb
     postgresMajorVersion: "16"
     # Only the API reaches it, over Render's private network.
     ipAllowList: []
 
 services:
   - type: web
-    name: mutual-stake-api
+    name: hire-mind-api
     runtime: docker
-    plan: free
-    branch: v1-build
+    # Starter, 0.5 CPU and 512 MB ($7 a month): unlike the free plan, it never sleeps, so the outbox keeps
+    # polling PayPal. The image caps the JVM heap to leave room for the verifier's Deno process.
+    plan: 0.5c-512mb
+    branch: main
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/status
     autoDeployTrigger: commit
     envVars:
-      - key: DB_HOST
-        fromDatabase: { name: mutual-stake-db, property: host }
-      - key: DB_PORT
-        fromDatabase: { name: mutual-stake-db, property: port }
-      - key: DB_NAME
-        fromDatabase: { name: mutual-stake-db, property: database }
-      - key: DB_USER
-        fromDatabase: { name: mutual-stake-db, property: user }
-      - key: DB_PASSWORD
-        fromDatabase: { name: mutual-stake-db, property: password }
+      # One private-network connection string instead of five values; DatabaseUrlEnvironment turns it into
+      # Spring's JDBC URL and credentials.
+      - key: DATABASE_URL
+        fromDatabase: { name: hire-mind-db, property: connectionString }
       # Sandbox only: the PayPal client refuses any other base URL.
       - key: PAYPAL_BASE_URL
         value: https://api-m.sandbox.paypal.com
@@ -60,9 +57,10 @@ services:
     name: hire-mind-web
     runtime: static
     # Static sites have no compute plan; they are free and reject `plan: free`.
-    # Build from the repo root. Vite writes web/dist; the publish directory is the copy at dist.
+    # Root is web, so Vite's dist is the publish directory. Do not prefix it with web/.
     branch: main
-    buildCommand: npm ci --prefix web && npm run build --prefix web && rm -rf dist && cp -R web/dist dist
+    rootDir: web
+    buildCommand: npm ci && npm run build
     staticPublishPath: dist
     autoDeployTrigger: commit
     routes:

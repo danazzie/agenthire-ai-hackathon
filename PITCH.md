@@ -35,13 +35,13 @@ Thirty teams will show “AI judged the work, then PayPal paid.” We show **two
 Two agents. One sentence from the human (“50-word blurb, max $2, by 18:00, no lorem ipsum”).
 
 1. They **negotiate** price, deadline, and bond (default ≈ 25% of the fee).
-2. The agent **compiles** the sentence into a verifier. Both sides see it. Its hash is written on **both** PayPal orders **before** anyone approves a hold.
+2. The buyer’s agent turns the sentence into a structured test, and code **compiles** it into a verifier. Both sides see it. Its hash is written on **both** PayPal orders **before** anyone approves a hold.
 3. Buyer authorizes the **fee**. Seller authorizes the **bond**. Status: **Held**. Nothing captured.
 4. Seller delivers text or a file.
 5. The **verifier runs code**, not a chat. Placeholder text fails. Fifty real words pass.
 6. **FAIL** → void the fee (buyer never charged) → capture the bond → Payouts to the buyer.  
    **PASS** → capture the fee to the seller → void the bond (seller never charged).
-7. Either side can push the log into PayPal **Disputes**. The evidence is the contract they already signed with the hash.
+7. Appeal through PayPal **Disputes** is designed but **not built** in v1. The screen says so.
 
 v1 is **agent → agent**. The same rails later hire a person. We do not fake that in November.
 
@@ -54,7 +54,7 @@ v1 is **agent → agent**. The same rails later hire a person. We do not fake th
 | Two chatbots and a green “Paid” label | A human clicking Pay after a suggestion |
 | You have a toy | You have checkout with extra steps |
 
-Load-bearing on both sides. Orders v2 `AUTHORIZE` / capture / void, Payouts v1, `custom_id` as the mandate, Disputes as the appeal. It is a PayPal authorization hold (~29 days), **not** legal escrow. We say that on the README.
+Load-bearing on both sides. Orders v2 `AUTHORIZE` / capture / void, Payouts v1, `custom_id` as the mandate. (Disputes for appeal is not built yet.) It is a PayPal authorization hold (~29 days), **not** legal escrow. We say that on the README.
 
 ---
 
@@ -104,10 +104,10 @@ No music. No logos you do not own. If the sound is off, the jars still tell the 
 HireMind lets two agents settle work on PayPal without trusting each other. The buyer’s fee and the seller’s bond are authorized, not captured. A test compiled from the job — hashed onto both orders — decides capture or void. Fail: the client is never charged; the bond compensates them. Pass: the seller is paid; the bond is released. Money never moves on an opinion.
 
 **How we used PayPal:**  
-Orders v2 authorize / capture / void for fee and bond; Payouts v1 to send a captured bond to the buyer; `custom_id` holds the verifier hash; Disputes API for appeal; Agent Toolkit / MCP for agent calls where tools exist.
+Orders v2 with intent `AUTHORIZE`, then authorize, capture and void, for both the buyer’s fee and the seller’s bond. Payouts v1 sends a captured fee to the seller or a captured bond to the buyer. `custom_id` carries the verifier’s SHA-256 on both orders before either hold is approved. The screen changes only when PayPal confirms a step, and every sandbox call is logged per deal with its `PayPal-Request-Id`.
 
 **How we used AI:**  
-Buyer and seller agents negotiate terms; compile a plain-English test into an executable verifier; run the verifier on the deliverable; call PayPal. The model does not get to “feel” that the work is good.
+Claude (through the Anthropic Java SDK) runs both agents. The buyer’s agent turns one sentence into a job, a fee cap, a deadline and a structured test; code compiles that test into a deterministic verifier. The agents negotiate fee and bond, and the control plane refuses any offer over the cap. The seller’s agent writes the work and dry-runs it against the verifier before delivering. The agents cannot touch PayPal: nothing they can call captures, voids or pays. The model does not get to “feel” that the work is good.
 
 ---
 
@@ -125,7 +125,7 @@ We do not chase grocery, AG Grid, or a sad charity story.
 ## One slide
 
 ```
-MUTUAL STAKE
+HIREMIND
 PayPal holds both sides. The test decides.
 
   Client agent ──AUTHORIZE fee──▶  [ JAR: FEE ]
