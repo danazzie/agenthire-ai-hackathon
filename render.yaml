@@ -57,12 +57,12 @@ services:
         sync: false
 
   - type: web
-    name: mutual-stake-web
+    name: hire-mind-web
     runtime: static
     # Static sites have no compute plan; they are free and reject `plan: free`.
-    branch: v1-build
-    rootDir: web
-    buildCommand: npm ci && npm run build
+    # Build from the repo root. Vite writes web/dist; the publish directory is the copy at dist.
+    branch: main
+    buildCommand: npm ci --prefix web && npm run build --prefix web && rm -rf dist && cp -R web/dist dist
     staticPublishPath: dist
     autoDeployTrigger: commit
     routes:
@@ -72,6 +72,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # The API's address, e.g. https://mutual-stake-api.onrender.com
+      # Baked into the static build. The screen also falls back to this URL.
       - key: VITE_API_URL
-        sync: false
+        value: https://hire-mind-api.onrender.com

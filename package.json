@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "npm ci --prefix web && npm run build --prefix web && rm -rf dist && cp -R web/dist dist"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

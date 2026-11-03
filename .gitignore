@@ -8,13 +8,12 @@
 *.iml
 .vscode/
 
-# Build output
+# Build output. /dist and web/dist are the static site Render publishes, so they stay in git.
 build/
 out/
 .gradle/
 .kotlin/
 node_modules/
-dist/
 
 # OS
 .DS_Store
