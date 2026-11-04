@@ -166,13 +166,13 @@ export function DeskChrome({ desk, status, dealCount, dealId, hash, go, children
   return (
     <div className="desk-shell min-h-svh min-w-0">
       <header className="sticky top-0 z-40 border-b border-[#e5e7eb] bg-white">
-        <div className="flex h-[68px] items-center justify-between gap-3 px-5 sm:hidden">
+        <div className="flex h-[68px] items-center justify-between gap-3 px-5 lg:hidden">
           <BrandLockup chip={workspace.chip} />
           <button type="button" onClick={() => go('/')} aria-label={`Change role. ${name}`} className="flex size-11 shrink-0 items-center justify-center">
             <Avatar name={name} />
           </button>
         </div>
-        <div className="mx-auto hidden h-[76px] max-w-7xl items-center gap-6 px-6 sm:flex lg:px-10">
+        <div className="mx-auto hidden h-[76px] max-w-7xl items-center gap-6 px-6 lg:flex lg:px-10">
           <nav aria-label="Workspace" className="flex shrink-0 items-center gap-2.5 text-[13px] leading-normal">
             <button type="button" onClick={() => follow(`/${desk}`)} className="text-[#64748b]">{workspace.section}</button>
             <span className="text-[#94a3b8]">/</span>
@@ -208,8 +208,8 @@ export function DeskChrome({ desk, status, dealCount, dealId, hash, go, children
           </div>
         </div>
       </header>
-      <div className="min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-0">{children}</div>
-      <nav aria-label="Desk" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7eb] bg-white px-3 pt-[15px] pb-[max(10px,env(safe-area-inset-bottom))] sm:hidden">
+      <div className="min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</div>
+      <nav aria-label="Desk" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7eb] bg-white px-3 pt-[15px] pb-[max(10px,env(safe-area-inset-bottom))] lg:hidden">
         <div className="flex items-start justify-between">
           {nav.map((item) => (
             <button key={item.label} type="button" aria-current={item.current ? 'page' : undefined} onClick={() => follow(item.href)} className={`flex min-h-11 w-[90px] max-w-[25%] flex-col items-center gap-[5px] ${item.current ? 'text-[#2563eb]' : 'text-[#64748b]'}`}>
