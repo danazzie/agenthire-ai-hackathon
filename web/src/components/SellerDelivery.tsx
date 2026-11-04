@@ -139,7 +139,7 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
               <p className="text-[13px] leading-normal">{verdict ? 'This result is final' : 'Holds stay in place until the test runs'}</p>
               <p className="mt-1 text-[12px] leading-normal">
                 {verdict === 'PASS' && `PASS captures ${money(deal.feeMinor)} and releases your ${money(deal.bondMinor)} bond. The session’s first capture still waits for the buyer.`}
-                {verdict === 'FAIL' && `A final FAIL voids the uncaptured ${money(deal.feeMinor)} hold. That is not a refund: the money was never taken. Your ${money(deal.bondMinor)} bond is released. A no-show is different: no delivery pays the bond to the buyer.`}
+                {verdict === 'FAIL' && `A final FAIL voids the uncaptured ${money(deal.feeMinor)} hold. That is not a refund: the money was never taken. Your ${money(deal.bondMinor)} bond is paid to the buyer. A no-show is different: no delivery pays the bond to the buyer.`}
                 {!verdict && `The buyer’s ${money(deal.feeMinor)} and your ${money(deal.bondMinor)} stay as PayPal authorizations. Nothing is captured until the compiled test decides. There is no second delivery after that.`}
               </p>
             </div>
@@ -159,7 +159,7 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
                     <p className="text-[11px] text-[#64748b]">The locked test reads it. “Mark as passed” does nothing.</p>
                   </div>
                 </div>
-                <p className="text-[13px] leading-normal text-[#64748b]">Submitting runs the compiled test once. A PASS captures the fee. A FAIL voids the uncaptured hold and releases your bond.</p>
+                <p className="text-[13px] leading-normal text-[#64748b]">Submitting runs the compiled test once. A PASS captures the fee. A FAIL voids the uncaptured hold and your bond is paid to the buyer.</p>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button type="button" disabled={actions.busy} onClick={() => actions.deliver?.('AGENT')} className={BLUE}>Seller’s agent writes it</button>
                   <button type="button" disabled={actions.busy} onClick={() => actions.deliver?.('SCRIPTED_PASS')} className={GHOST}>Scripted 50-word delivery</button>
@@ -189,7 +189,7 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
-              <p className="text-[13px] leading-normal text-[#0f172a]">FAIL: any check fails → the fee hold is voided and your bond is released. The fee is not split.</p>
+              <p className="text-[13px] leading-normal text-[#0f172a]">FAIL: any check fails → the fee hold is voided and your bond is paid to the buyer. The fee is not split.</p>
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
@@ -259,7 +259,7 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
             <img src={infoMark} alt="" />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] leading-normal">If the deadline passes</p>
-              <p className="mt-1 text-[12px] leading-normal">With no delivery, the {money(deal.feeMinor)} fee hold is voided and your {money(deal.bondMinor)} bond is paid to the buyer. A delivered FAIL is different: the bond is released, not taken.</p>
+              <p className="mt-1 text-[12px] leading-normal">With no delivery, the {money(deal.feeMinor)} fee hold is voided and your {money(deal.bondMinor)} bond is paid to the buyer. A delivered FAIL follows the same rule: your bond is paid to the buyer.</p>
             </div>
           </aside>
         </div>
@@ -280,11 +280,11 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
             <p className="text-[12px] leading-normal text-[#64748b]">PASS captures the fee and releases the bond. You do not wait for a manual approval, except the session’s first capture.</p>
           </article>
           <article className={`flex flex-col gap-[18px] ${CARD} ${verdict === 'FAIL' ? 'ring-2 ring-[#f5c2c2]' : ''}`}>
-            <h3 className="text-[17px] leading-normal text-[#0f172a]">FAIL · Fee voided, bond released</h3>
+            <h3 className="text-[17px] leading-normal text-[#0f172a]">FAIL · Fee voided, bond paid to the buyer</h3>
             <span className="w-fit rounded-md border border-[#bfdbfe] bg-[#dbeafe] px-[9px] py-1 text-[11px] text-[#1e40af]">{verdict === 'FAIL' ? 'This job' : 'The other result'}</span>
             <dl className="flex flex-col gap-3.5">
               <div className="flex gap-3"><dt className="flex-1 text-[13px] text-[#0f172a]">Buyer fee voided</dt><dd className="text-[14px] font-bold text-[#192b3a]">{money(deal.feeMinor)}</dd></div>
-              <div className="flex gap-3"><dt className="flex-1 text-[13px] text-[#64748b]">Your bond released</dt><dd className="text-[14px] text-[#192b3a]">{money(deal.bondMinor)}</dd></div>
+              <div className="flex gap-3"><dt className="flex-1 text-[13px] text-[#64748b]">Your bond paid to the buyer</dt><dd className="text-[14px] text-[#192b3a]">{money(deal.bondMinor)}</dd></div>
               <div className="flex gap-3"><dt className="flex-1 text-[13px] text-[#64748b]">Net work earnings</dt><dd className="text-[14px] text-[#192b3a]">{money(0)}</dd></div>
             </dl>
             <p className="text-[12px] leading-normal text-[#64748b]">A final FAIL voids the whole hold. It is not a refund, and it is not a partial payment.</p>
