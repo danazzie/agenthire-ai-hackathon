@@ -20,6 +20,24 @@ describe('seller delivery', () => {
     expect(fail.textContent).not.toMatch(/bond is released/i)
   })
 
+  it('does not treat a no-show as different from a final FAIL in settlement copy', () => {
+    render(<SellerDelivery deal={deal({
+      state: 'FAIL',
+      feeMinor: 150,
+      bondMinor: 40,
+      delivery: { id: 'd', submittedAt: '', payloadSha256: '', text: 'x', verdict: 'FAIL', failingCheck: 'words', summary: null, checks: [], injectionFlags: [], verifiedAt: '', run: null, attempts: 1, needsAttention: false, attentionReason: null },
+      holds: [
+        hold({ side: 'BUYER_FEE', jar: 'RELEASED', state: 'VOIDED', amountMinor: 150 }),
+        hold({ side: 'SELLER_BOND', jar: 'COMPENSATION', state: 'PAID_OUT', amountMinor: 40, payer: 'maya' }),
+      ],
+    })} />)
+    expect(screen.queryByText(/no-show is different/i)).toBeNull()
+    const finalAside = screen.getByText('This result is final').closest('div')!
+    expect(finalAside.textContent).toMatch(/A final FAIL voids/i)
+    expect(finalAside.textContent).toMatch(/bond is paid to the buyer/i)
+    expect(finalAside.textContent).toMatch(/no-show pays the bond to the buyer the same way/i)
+  })
+
   it('hides Ask PayPal again unless the hold is created or approved', () => {
     const { rerender } = render(<SellerDelivery deal={deal({
       state: 'TERMS_LOCKED',

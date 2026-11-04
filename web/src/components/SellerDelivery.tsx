@@ -139,7 +139,7 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
               <p className="text-[13px] leading-normal">{verdict ? 'This result is final' : 'Holds stay in place until the test runs'}</p>
               <p className="mt-1 text-[12px] leading-normal">
                 {verdict === 'PASS' && `PASS captures ${money(deal.feeMinor)} and releases your ${money(deal.bondMinor)} bond. The session’s first capture still waits for the buyer.`}
-                {verdict === 'FAIL' && `A final FAIL voids the uncaptured ${money(deal.feeMinor)} hold. That is not a refund: the money was never taken. Your ${money(deal.bondMinor)} bond is paid to the buyer. A no-show is different: no delivery pays the bond to the buyer.`}
+                {verdict === 'FAIL' && `A final FAIL voids the uncaptured ${money(deal.feeMinor)} hold. That is not a refund: the money was never taken. Your ${money(deal.bondMinor)} bond is paid to the buyer. A no-show pays the bond to the buyer the same way.`}
                 {!verdict && `The buyer’s ${money(deal.feeMinor)} and your ${money(deal.bondMinor)} stay as PayPal authorizations. Nothing is captured until the compiled test decides. There is no second delivery after that.`}
               </p>
             </div>
