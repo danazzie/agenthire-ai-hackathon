@@ -243,7 +243,7 @@ export function SellerOpportunity({ deal, onNegotiate }: { deal: Contract; onNeg
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
-              <p className="text-[13px] leading-normal text-[#0f172a]">FAIL: any check fails → the fee hold is voided and your bond is released. The fee is not split.</p>
+              <p className="text-[13px] leading-normal text-[#0f172a]">FAIL: any check fails → the fee hold is voided and your bond is paid to the buyer. The fee is not split.</p>
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
