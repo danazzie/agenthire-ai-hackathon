@@ -320,7 +320,7 @@ export function SellerOpportunity({ deal, onNegotiate }: { deal: Contract; onNeg
             </dl>
             <div className="h-px bg-[#e5e7eb]" />
             <p className="text-[13px] font-bold leading-normal text-[#0f172a]">On PASS: {money(fee)} paid to you, {money(bond)} bond returned.</p>
-            <p className="text-[12px] leading-normal text-[#64748b]">A final test failure releases your bond and voids the fee hold. If you submit nothing by the deadline, the bond is paid to the buyer.</p>
+            <p className="text-[12px] leading-normal text-[#64748b]">A final test failure voids the fee hold and pays your bond to the buyer. The fee is not split. If you submit nothing by the deadline, the bond is paid to the buyer.</p>
             <label className="flex items-start gap-2.5 text-[13px] leading-normal text-[#0f172a]">
               <input type="checkbox" className="mt-0.5 size-4 shrink-0 accent-[#2563eb]" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />
               <span>I’ve reviewed the exact test, deadline and no-show bond terms.</span>

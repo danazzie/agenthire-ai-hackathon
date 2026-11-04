@@ -34,4 +34,11 @@ describe('seller opportunity', () => {
     expect(fail.textContent).toMatch(/not split/i)
     expect(fail.textContent).not.toMatch(/bond is released/i)
   })
+
+  it('accept panel says a failed test pays the bond to the buyer', async () => {
+    render(<SellerOpportunity deal={draft()} onNegotiate={() => {}} />)
+    const acceptNote = await screen.findByText(/A final test failure/)
+    expect(acceptNote.textContent).toMatch(/paid to the buyer/i)
+    expect(acceptNote.textContent).not.toMatch(/releases your bond/i)
+  })
 })
