@@ -6,6 +6,7 @@ import downloadMark from '../assets/figma-download.svg'
 import fileCode from '../assets/figma-file-code.svg'
 import fileMark from '../assets/figma-file.svg'
 import infoMark from '../assets/figma-info.svg'
+import { ratioOf } from '../bond.ts'
 
 const CARD = 'rounded-xl border border-[#e5e7eb] bg-white p-6 shadow-[0px_2px_10px_0px_rgba(15,23,42,0.04)]'
 const BLUE = 'flex min-h-11 w-full items-center justify-center rounded-lg border border-[#2563eb] bg-[#2563eb] px-4 text-[13px] font-semibold text-white shadow-[0px_8px_18px_0px_rgba(37,99,235,0.2)] disabled:opacity-40'
@@ -36,11 +37,6 @@ function sameTerms(a: Offer, b: Offer): boolean {
     && a.bondMinor === b.bondMinor
     && a.verifierId === b.verifierId
     && new Date(a.deadlineAt).getTime() === new Date(b.deadlineAt).getTime()
-}
-
-function ratioOf(bond: number, fee: number): string {
-  const pct = Math.round((bond / fee) * 10000) / 100
-  return String(pct)
 }
 
 function partyName(deal: Contract, handle: string): string {

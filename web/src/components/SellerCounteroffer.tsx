@@ -3,6 +3,7 @@ import { api, ApiError, type Contract, type Offer, type Status } from '../api.ts
 import { money, shortHash } from '../model.ts'
 import shieldMark from '../assets/figma-shield-offer.svg'
 import clockMark from '../assets/figma-clock.svg'
+import { bondCents as bondCentsFromRatio, ratioOf } from '../bond.ts'
 
 const CARD = 'rounded-xl border border-[#e5e7eb] bg-white p-6 shadow-[0px_2px_8px_0px_rgba(15,23,42,0.04)]'
 const FIELD = 'min-h-[46px] w-full rounded-lg border border-[#e5e7eb] bg-white px-[13px] py-[13px] text-[14px] leading-normal text-[#0f172a]'
@@ -39,11 +40,6 @@ function latest(offers: Offer[], party: string): Offer | undefined {
   return [...offers].reverse().find((o) => o.party === party)
 }
 
-function ratioOf(bond: number, fee: number): string {
-  const pct = Math.round((bond / fee) * 10000) / 100
-  return String(pct)
-}
-
 function defaultDeadline(): string {
   const due = new Date()
   due.setUTCHours(18, 0, 0, 0)
@@ -75,7 +71,7 @@ export function SellerCounteroffer({ deal, onBack }: { deal: Contract; onBack?: 
 
   const feeCents = centsOf(fee)
   const ratioN = Number(ratio)
-  const bondCents = feeCents != null && Number.isFinite(ratioN) ? Math.round((feeCents * ratioN) / 100) : null
+  const bondCents = feeCents != null && Number.isFinite(ratioN) ? bondCentsFromRatio(feeCents, ratioN) : null
   const deadlineIso = deadline ? fromUtcInput(deadline) : ''
   const deadlineOk = !!deadline && new Date(deadlineIso).getTime() > Date.now()
   const overCap = feeCents != null && feeCents > deal.feeCapMinor
