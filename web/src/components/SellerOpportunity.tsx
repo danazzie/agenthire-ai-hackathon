@@ -247,7 +247,7 @@ export function SellerOpportunity({ deal, onNegotiate }: { deal: Contract; onNeg
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
-              <p className="text-[13px] leading-normal text-[#0f172a]">No delivery at all → your bond is paid to the buyer. That is not the same as a failed test.</p>
+              <p className="text-[13px] leading-normal text-[#0f172a]">No delivery at all → the fee hold is voided and your bond is paid to the buyer, the same as a failed test.</p>
             </div>
             {verifier?.source && (
               <button type="button" onClick={() => setSourceOpen((v) => !v)} className="flex items-center gap-2 text-left text-[12px] text-[#2563eb]">

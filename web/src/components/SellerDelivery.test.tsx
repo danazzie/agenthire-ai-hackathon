@@ -38,6 +38,32 @@ describe('seller delivery', () => {
     expect(finalAside.textContent).toMatch(/no-show pays the bond to the buyer the same way/i)
   })
 
+  it('EXPIRED with no delivery says bond paid and not open holds', () => {
+    render(<SellerDelivery deal={deal({
+      state: 'EXPIRED',
+      feeMinor: 150,
+      bondMinor: 40,
+      delivery: null,
+    })} />)
+    const banner = screen.getByText('No delivery before the deadline').closest('div')!
+    expect(banner.textContent).toMatch(/fee hold is voided/i)
+    expect(banner.textContent).toMatch(/bond is paid to the buyer/i)
+    expect(screen.queryByText(/stay as PayPal authorizations/i)).toBeNull()
+    expect(screen.queryByText(/Holds stay in place until the test runs/i)).toBeNull()
+    expect(screen.queryByText(/not the same as a failed test/i)).toBeNull()
+    const noDelivery = screen.getByText(/No delivery at all/)
+    expect(noDelivery.textContent).toMatch(/fee hold is voided/i)
+    expect(noDelivery.textContent).toMatch(/same as a failed test/i)
+  })
+
+  it('TERMS_LOCKED with no verdict may say holds stay as authorizations', () => {
+    render(<SellerDelivery deal={deal({
+      state: 'TERMS_LOCKED',
+      delivery: null,
+    })} />)
+    expect(screen.getByText(/stay as PayPal authorizations/i)).toBeTruthy()
+  })
+
   it('hides Ask PayPal again unless the hold is created or approved', () => {
     const { rerender } = render(<SellerDelivery deal={deal({
       state: 'TERMS_LOCKED',

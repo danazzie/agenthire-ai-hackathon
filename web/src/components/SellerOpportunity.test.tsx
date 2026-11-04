@@ -14,8 +14,10 @@ vi.mock('../api.ts', () => ({
   },
 }))
 
-const draft = () => deal({
-  offers: [offer({ party: 'alex', kind: 'PROPOSE', feeMinor: 150, bondMinor: 40, verifierId: 'v' })],
+const futureDeadline = new Date(Date.now() + 86_400_000).toISOString()
+
+const draft = (deadlineAt = futureDeadline) => deal({
+  offers: [offer({ party: 'alex', kind: 'PROPOSE', feeMinor: 150, bondMinor: 40, verifierId: 'v', deadlineAt })],
 })
 
 describe('seller opportunity', () => {
@@ -23,8 +25,29 @@ describe('seller opportunity', () => {
 
   it('does not post an ACCEPT until Maya reviews the terms', async () => {
     render(<SellerOpportunity deal={draft()} onNegotiate={() => {}} />)
-    await userEvent.click(await screen.findByRole('button', { name: /accept these terms/i }))
+    const accept = await screen.findByRole('button', { name: /accept these terms/i })
+    expect(accept).toBeDisabled()
+    await userEvent.click(accept)
     expect(offerMock).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('checkbox', { name: /reviewed the exact test, deadline and no-show bond terms/i }))
+    expect(accept).toBeEnabled()
+    await userEvent.click(accept)
+    expect(offerMock).toHaveBeenCalledTimes(1)
+    expect(offerMock).toHaveBeenCalledWith('c', 'maya', {
+      kind: 'ACCEPT',
+      feeMinor: 150,
+      bondMinor: 40,
+      deadlineAt: futureDeadline,
+      verifierId: 'v',
+    })
+  })
+
+  it('no-delivery bullet voids the fee hold like a failed test', async () => {
+    render(<SellerOpportunity deal={draft()} onNegotiate={() => {}} />)
+    const noDelivery = await screen.findByText(/No delivery at all/)
+    expect(noDelivery.textContent).toMatch(/fee hold is voided/i)
+    expect(noDelivery.textContent).toMatch(/same as a failed test/i)
+    expect(noDelivery.textContent).not.toMatch(/not the same as a failed test/i)
   })
 
   it('says a failed test pays the bond to the buyer and does not split the fee', async () => {

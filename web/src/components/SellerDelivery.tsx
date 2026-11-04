@@ -76,6 +76,7 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
           : next.kind === 'approve'
             ? 'Bond approval needed'
             : deal.state.replaceAll('_', ' ')
+  const expiredNoDelivery = !verdict && deal.state === 'EXPIRED'
 
   return (
     <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -136,11 +137,14 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
           <aside className="flex items-start gap-3 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-4">
             <img src={verdict ? infoMark : clockMark} alt="" />
             <div className="min-w-0 flex-1 text-[#2563eb]">
-              <p className="text-[13px] leading-normal">{verdict ? 'This result is final' : 'Holds stay in place until the test runs'}</p>
+              <p className="text-[13px] leading-normal">
+                {verdict ? 'This result is final' : expiredNoDelivery ? 'No delivery before the deadline' : 'Holds stay in place until the test runs'}
+              </p>
               <p className="mt-1 text-[12px] leading-normal">
                 {verdict === 'PASS' && `PASS captures ${money(deal.feeMinor)} and releases your ${money(deal.bondMinor)} bond. The session’s first capture still waits for the buyer.`}
                 {verdict === 'FAIL' && `A final FAIL voids the uncaptured ${money(deal.feeMinor)} hold. That is not a refund: the money was never taken. Your ${money(deal.bondMinor)} bond is paid to the buyer. A no-show pays the bond to the buyer the same way.`}
-                {!verdict && `The buyer’s ${money(deal.feeMinor)} and your ${money(deal.bondMinor)} stay as PayPal authorizations. Nothing is captured until the compiled test decides. There is no second delivery after that.`}
+                {expiredNoDelivery && `The ${money(deal.feeMinor)} fee hold is voided and your ${money(deal.bondMinor)} bond is paid to the buyer — the same as a final FAIL.`}
+                {!verdict && !expiredNoDelivery && `The buyer’s ${money(deal.feeMinor)} and your ${money(deal.bondMinor)} stay as PayPal authorizations. Nothing is captured until the compiled test decides. There is no second delivery after that.`}
               </p>
             </div>
           </aside>
@@ -193,7 +197,7 @@ export function SellerDelivery({ deal, actions = {} }: { deal: Contract; actions
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
-              <p className="text-[13px] leading-normal text-[#0f172a]">No delivery at all → your bond is paid to the buyer. That is not the same as a failed test.</p>
+              <p className="text-[13px] leading-normal text-[#0f172a]">No delivery at all → the fee hold is voided and your bond is paid to the buyer, the same as a failed test.</p>
             </div>
             {deal.verifier?.source && (
               <button type="button" onClick={() => setSourceOpen((v) => !v)} className="flex items-center gap-2 text-left text-[12px] text-[#2563eb]">
