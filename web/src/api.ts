@@ -157,7 +157,7 @@ export class ApiError extends Error {
 // Local dev leaves this empty so Vite can proxy /api to the control plane.
 // A production build with no VITE_API_URL still calls the deployed API.
 const configured = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '')
-const base = configured || (import.meta.env.PROD ? 'https://hire-mind-api.onrender.com' : '')
+const base = configured || (import.meta.env?.PROD ? 'https://hire-mind-api.onrender.com' : '')
 
 async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown, party?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
