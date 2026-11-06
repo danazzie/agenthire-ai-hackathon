@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
     "preview": "vite preview",
     "test": "node --test \"src/**/*.test.ts\"",
+    "test:ui": "vitest run",
     "lint": "oxlint"
   },
   "dependencies": {
@@ -15,15 +16,20 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/node": "^24.19.2",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "6.1.2",
-    "@tailwindcss/vite": "4.3.3",
-    "tailwindcss": "4.3.3",
+    "happy-dom": "^21.0.4",
     "oxlint": "^1.88.0",
+    "tailwindcss": "4.3.3",
     "typescript": "~6.0.3",
-    "vite": "8.3.5"
+    "vite": "8.3.5",
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=22.18"

@@ -6,6 +6,7 @@ import downloadMark from '../assets/figma-download.svg'
 import fileCode from '../assets/figma-file-code.svg'
 import fileMark from '../assets/figma-file.svg'
 import infoMark from '../assets/figma-info.svg'
+import { ratioOf } from '../bond.ts'
 
 const CARD = 'rounded-xl border border-[#e5e7eb] bg-white p-6 shadow-[0px_2px_10px_0px_rgba(15,23,42,0.04)]'
 const BLUE = 'flex min-h-11 w-full items-center justify-center rounded-lg border border-[#2563eb] bg-[#2563eb] px-4 text-[13px] font-semibold text-white shadow-[0px_8px_18px_0px_rgba(37,99,235,0.2)] disabled:opacity-40'
@@ -36,11 +37,6 @@ function sameTerms(a: Offer, b: Offer): boolean {
     && a.bondMinor === b.bondMinor
     && a.verifierId === b.verifierId
     && new Date(a.deadlineAt).getTime() === new Date(b.deadlineAt).getTime()
-}
-
-function ratioOf(bond: number, fee: number): string {
-  const pct = Math.round((bond / fee) * 10000) / 100
-  return String(pct)
 }
 
 function partyName(deal: Contract, handle: string): string {
@@ -247,11 +243,11 @@ export function SellerOpportunity({ deal, onNegotiate }: { deal: Contract; onNeg
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
-              <p className="text-[13px] leading-normal text-[#0f172a]">FAIL: any check fails → the fee hold is voided and your bond is released. The fee is not split.</p>
+              <p className="text-[13px] leading-normal text-[#0f172a]">FAIL: any check fails → the fee hold is voided and your bond is paid to the buyer. The fee is not split.</p>
             </div>
             <div className="flex items-start gap-2.5">
               <img src={checkMark} alt="" />
-              <p className="text-[13px] leading-normal text-[#0f172a]">No delivery at all → your bond is paid to the buyer. That is not the same as a failed test.</p>
+              <p className="text-[13px] leading-normal text-[#0f172a]">No delivery at all → the fee hold is voided and your bond is paid to the buyer, the same as a failed test.</p>
             </div>
             {verifier?.source && (
               <button type="button" onClick={() => setSourceOpen((v) => !v)} className="flex items-center gap-2 text-left text-[12px] text-[#2563eb]">
@@ -324,7 +320,7 @@ export function SellerOpportunity({ deal, onNegotiate }: { deal: Contract; onNeg
             </dl>
             <div className="h-px bg-[#e5e7eb]" />
             <p className="text-[13px] font-bold leading-normal text-[#0f172a]">On PASS: {money(fee)} paid to you, {money(bond)} bond returned.</p>
-            <p className="text-[12px] leading-normal text-[#64748b]">A final test failure releases your bond and voids the fee hold. If you submit nothing by the deadline, the bond is paid to the buyer.</p>
+            <p className="text-[12px] leading-normal text-[#64748b]">A final test failure voids the fee hold and pays your bond to the buyer. The fee is not split. If you submit nothing by the deadline, the bond is paid to the buyer.</p>
             <label className="flex items-start gap-2.5 text-[13px] leading-normal text-[#0f172a]">
               <input type="checkbox" className="mt-0.5 size-4 shrink-0 accent-[#2563eb]" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />
               <span>I’ve reviewed the exact test, deadline and no-show bond terms.</span>

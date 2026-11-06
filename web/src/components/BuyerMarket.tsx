@@ -128,7 +128,7 @@ function SessionGuardrails({ status, deals }: { status: Status | null; deals: Co
         <img src={infoMark} alt="" />
         <div className="flex min-w-0 flex-1 flex-col gap-1 leading-normal">
           <p className="text-[13px] font-semibold">Held is not paid</p>
-          <p className="text-[12px] opacity-85">PayPal holds the agreed fee. A final failed test or an expired deadline automatically voids the uncaptured hold. A no-show also pays you the seller’s bond.</p>
+          <p className="text-[12px] opacity-85">PayPal holds the agreed fee. A failed test or no delivery voids the uncaptured fee. PayPal then pays you the seller&apos;s bond. The fee is not split, and voiding the fee is not a refund. A no-show or expired deadline works the same way.</p>
         </div>
       </aside>
     </div>
