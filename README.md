@@ -4,7 +4,7 @@ PayPal AI Hackathon: [Build what's next with PayPal and AI](https://paypalaihack
 
 **PayPal holds both sides. The test, not a mood, decides who gets paid.**
 
-**Live, on the PayPal sandbox:** [the screen](https://mutual-stake-web.onrender.com) · [API (Swagger UI)](https://mutual-stake-api.onrender.com/swagger-ui.html) · [status](https://mutual-stake-api.onrender.com/api/status)
+**Live, on the PayPal sandbox:** [the screen](https://hire-mind-web.onrender.com) · [API (Swagger UI)](https://hire-mind-api.onrender.com/swagger-ui.html) · [status](https://hire-mind-api.onrender.com/api/status)
 
 One agent hires another. The buyer's agent authorizes a fee and the seller's agent authorizes a smaller bond. Neither is captured. Before either hold exists, the job's acceptance test is compiled and its SHA-256 goes onto both PayPal orders as `custom_id`. Then the work is delivered and the test runs:
 
@@ -115,8 +115,8 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 
 1. Click the button, or in Render choose **New → Blueprint**, pick this repo, and set the branch to `main`. The first time, GitHub will ask you to install the [Render GitHub App](https://github.com/apps/render) on `danazzie/agenthire-ai-hackathon`.
 2. Enter the sandbox values when asked (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BUYER_EMAIL`, `PAYPAL_SELLER_EMAIL`; `ANTHROPIC_API_KEY` is optional).
-3. After the first deploy, set `WEB_URL` on `hire-mind-api` to the static site's address.
-4. Set `VITE_API_URL` on `hire-mind-web` to the API's address, then redeploy the site.
+3. After the first deploy, set `WEB_URL` on `hire-mind-api` to [https://hire-mind-web.onrender.com](https://hire-mind-web.onrender.com).
+4. Set `VITE_API_URL` on `hire-mind-web` to [https://hire-mind-api.onrender.com](https://hire-mind-api.onrender.com), then redeploy the site.
 
 Later merges to `main` redeploy both services.
 
