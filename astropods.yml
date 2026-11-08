@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://astropods.com/schema/package.json
+# The HireMind agents on Astropods: the buyer's and the seller's Claude agents (agent-runner/).
+# They claim their steps from the control plane on Render and use its protocol over HTTP; only the
+# control plane moves money. Deploy steps: agent-runner/README.md.
+spec: blueprint/v1
+name: hiremind-agents
+agent:
+  build:
+    context: .
+    dockerfile: agent-runner/Dockerfile
+  interfaces:
+    # The runner's status page, on port 80, behind Astropods sign-in. No chat: the agents talk to each
+    # other through the deal, not to people.
+    frontend: true
+    messaging: false
+  healthcheck:
+    path: /health
+  inputs:
+    - name: CONTROL_PLANE_URL
+      datatype: string
+      description: The control plane's address, e.g. https://mutual-stake-api.onrender.com
+    - name: RUNNER_TOKEN
+      datatype: string
+      secret: true
+      description: The shared secret, the same value as RUNNER_TOKEN on the control plane
+    - name: ANTHROPIC_API_KEY
+      datatype: string
+      secret: true
+      description: Claude for the buyer's and the seller's agents
+    - name: AGENT_TIMEZONE
+      datatype: string
+      optional: true
+      default: UTC
+      description: Where an agent reads "by 18:00", e.g. Europe/Istanbul
+dev:
+  # The image's own start command; the default (bun) does not apply to this JVM container.
+  command: /app/bin/agent-runner
+  # Nothing is mounted over the built image.
+  watch: []
+  interfaces:
+    frontend:
+      port: 80

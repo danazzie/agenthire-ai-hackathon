@@ -120,6 +120,8 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 
 Later merges to `main` redeploy both services.
 
+The Claude agents can also run on Astropods, as their own service that calls this API. Set `AGENTS_REMOTE` and `RUNNER_TOKEN` here, then deploy [agent-runner/](agent-runner/README.md) with `ast`. Drafting a job from a sentence stays on this service.
+
 The Blueprint uses paid instances, about $13 a month in total; the static site is free.
 
 - **API** (0.5 CPU, 512 MB, $7): it never sleeps, so the outbox keeps polling PayPal.
@@ -133,6 +135,7 @@ The free plans also work if you set `plan: free`, but the free API sleeps after 
 |---|---|
 | [control-plane/](control-plane) | Kotlin, Spring Boot 3, Postgres and Flyway, with a transactional outbox: contracts, holds, the verifier, settlement and the PayPal client |
 | [agents/](agents) | The buyer's and the seller's agents (Claude, Anthropic Java SDK): they draft the job, negotiate and write the delivery |
+| [agent-runner/](agent-runner) | Those agents as their own service on Astropods ([astropods.yml](astropods.yml)): it claims agent steps from the control plane and uses the protocol over HTTP |
 | [web/](web) | React and Vite: the jars and the step panels |
 | [docs/](docs) | The sandbox spike, its findings and the demo driver |
 | [USER_STORIES.md](USER_STORIES.md) · [PROTOTYPES.md](PROTOTYPES.md) · [PITCH.md](PITCH.md) | Stories, paper prototypes and the pitch |
