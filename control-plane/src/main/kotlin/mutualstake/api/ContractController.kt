@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import mutualstake.agents.Claude
+import mutualstake.agentic.AgentHosting
 import mutualstake.config.MutualStakeProperties
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.NegotiationService
@@ -86,10 +87,13 @@ class ContractController(
     private val settlement: SettlementService,
     private val callLog: PayPalCallLog,
     private val claude: Claude,
+    private val hosting: AgentHosting,
 ) {
     @GetMapping("/status")
     @Operation(summary = "Read the control plane status and the current session")
-    fun status() = StatusView(paypal.configured, props.paypal.webhooksConfigured, claude.available, parties.all().map(::PartyView), SessionView(sessions.current()))
+    fun status() = StatusView(
+        paypal.configured, props.paypal.webhooksConfigured, claude.available, parties.all().map(::PartyView), SessionView(sessions.current()), hosting.host, hosting.runnerSeenAt,
+    )
 
     /** Compiles a structured test into a verifier and returns its source and SHA-256 (US-1, US-9). */
     @PostMapping("/verifiers/compile")

@@ -54,7 +54,16 @@ data class SessionView(val id: UUID, val startedAt: Instant, val capMinor: Long,
     constructor(s: Session) : this(s.id, s.startedAt, s.cap.minor, s.maxJobs, s.firstCaptureConfirmedAt)
 }
 
-data class StatusView(val paypalConfigured: Boolean, val webhooksConfigured: Boolean, val agentsConfigured: Boolean, val parties: List<PartyView>, val session: SessionView)
+/** [agentsHost] is in_process or astropods; with astropods, [runnerSeenAt] says when the runner last asked for work. */
+data class StatusView(
+    val paypalConfigured: Boolean,
+    val webhooksConfigured: Boolean,
+    val agentsConfigured: Boolean,
+    val parties: List<PartyView>,
+    val session: SessionView,
+    val agentsHost: String = "in_process",
+    val runnerSeenAt: java.time.Instant? = null,
+)
 
 data class VerifierView(val id: UUID, val sha256: String, val language: String, val source: String, val compiledAt: Instant, val spec: String?) {
     constructor(v: Verifier) : this(v.id, v.sha256, v.language, v.source, v.compiledAt, v.spec)

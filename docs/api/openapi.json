@@ -1434,11 +1434,14 @@
         }
       },
       "StatusView" : {
-        "required" : [ "agentsConfigured", "parties", "paypalConfigured", "session", "webhooksConfigured" ],
+        "required" : [ "agentsConfigured", "agentsHost", "parties", "paypalConfigured", "session", "webhooksConfigured" ],
         "type" : "object",
         "properties" : {
           "agentsConfigured" : {
             "type" : "boolean"
+          },
+          "agentsHost" : {
+            "type" : "string"
           },
           "parties" : {
             "type" : "array",
@@ -1448,6 +1451,11 @@
           },
           "paypalConfigured" : {
             "type" : "boolean"
+          },
+          "runnerSeenAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
           },
           "session" : {
             "$ref" : "#/components/schemas/SessionView"

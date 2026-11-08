@@ -37,6 +37,10 @@ class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHa
     @Volatile
     var handlerTimeout: Duration = Duration.ofSeconds(props.scheduling.handlerTimeoutSeconds)
 
+    /** Event types a worker outside this process runs (the agent runner, with AGENTS_REMOTE on): never claimed here. */
+    @Volatile
+    var leftToOthers: Set<OutboxType> = emptySet()
+
     @Scheduled(fixedDelayString = "\${mutualstake.scheduling.outbox-poll-ms:500}")
     fun tick() {
         poll()
@@ -44,7 +48,7 @@ class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHa
 
     /** Runs one batch of due events and returns how many were claimed. */
     fun poll(): Int {
-        val due = outbox.claimDue(BATCH, LEASE)
+        val due = outbox.claimDue(BATCH, LEASE, leftToOthers)
         due.forEach(::run)
         return due.size
     }
@@ -78,7 +82,10 @@ class OutboxPoller(private val outbox: OutboxRepository, handlers: List<OutboxHa
         }
     }
 
-    private fun fail(handler: OutboxHandler, event: OutboxEvent, reason: String, retryable: Boolean, classified: ClassifiedFailure?) {
+    fun handlerFor(type: OutboxType): OutboxHandler? = byType[type]
+
+    /** A step that did not finish: retried with backoff while waiting can help, else dead and flagged where people look. */
+    fun fail(handler: OutboxHandler, event: OutboxEvent, reason: String, retryable: Boolean, classified: ClassifiedFailure? = null) {
         if (retryable && event.attempts < (classified?.maxAttempts ?: MAX_ATTEMPTS)) {
             outbox.retryLater(event.id, classified?.retryAfter ?: backoff(event.attempts), reason)
         } else {

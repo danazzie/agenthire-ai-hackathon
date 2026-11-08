@@ -51,6 +51,7 @@ class AgentService(
     private val jobs: AgentJobRepository,
     private val outbox: OutboxRepository,
     private val props: MutualStakeProperties,
+    private val hosting: AgentHosting,
     private val mapper: ObjectMapper,
     private val clock: Clock,
 ) {
@@ -71,7 +72,7 @@ class AgentService(
     /** The person confirmed the job and its test: open the deal and let the buyer's agent make the first offer. */
     @Transactional
     fun start(sentence: String, jobText: String, feeCap: Money, deadlineAt: Instant, verifierId: UUID): Contract {
-        requireAgents()
+        requireNegotiators()
         val verifier = verifiers.byId(verifierId) ?: throw ApiException.unprocessable("unknown_verifier", "no verifier $verifierId")
         if (verifier.spec == null) throw ApiException.unprocessable("verifier_not_compiled", "the job's verifier must be compiled from a structured test")
         val deadline = Terms.normalizeDeadline(deadlineAt)
@@ -88,11 +89,16 @@ class AgentService(
         if (contract.state != ContractState.BOTH_HELD) throw ApiException.conflict("not_funded", "deliver once both holds are in place; this deal is ${contract.state}")
         when (mode) {
             DeliveryMode.AGENT -> {
-                requireAgents()
+                requireNegotiators()
                 outbox.enqueue(contractId, OutboxType.AGENT_DELIVER)
             }
             DeliveryMode.SCRIPTED_JUNK -> deliveries.submit(contractId, parties.byId(contract.sellerId), SCRIPTED_JUNK)
         }
+    }
+
+    /** With the agents hosted remotely, the runner negotiates and delivers: this process needs no Claude for it. */
+    private fun requireNegotiators() {
+        if (!hosting.remote) requireAgents()
     }
 
     private fun requireAgents() {

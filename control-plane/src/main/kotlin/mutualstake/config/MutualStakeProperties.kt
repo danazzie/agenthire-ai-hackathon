@@ -37,8 +37,18 @@ data class MutualStakeProperties(
     /** US-25: what one session's agents may commit, and on how many jobs. */
     data class SessionDefaults(val capMinor: Long = 3000, val maxJobs: Int = 2)
 
-    /** The Claude agents. Without a key they are off, and say so (no_credentials). */
-    data class Agents(val anthropicApiKey: String = "", val timezone: String = "", val maxOffers: Int = 12, val writingAttempts: Int = 4) {
+    /**
+     * The Claude agents. Without a key they are off, and say so (no_credentials). With [remote] on, the negotiation and
+     * the seller's delivery run on the agent runner (Astropods) instead, which signs its calls with [runnerToken].
+     */
+    data class Agents(
+        val anthropicApiKey: String = "",
+        val timezone: String = "",
+        val maxOffers: Int = 12,
+        val writingAttempts: Int = 4,
+        val remote: Boolean = false,
+        val runnerToken: String = "",
+    ) {
         val configured: Boolean get() = anthropicApiKey.isNotBlank()
     }
 
