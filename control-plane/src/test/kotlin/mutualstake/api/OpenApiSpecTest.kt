@@ -19,10 +19,13 @@ class OpenApiSpecTest @Autowired constructor(private val mvc: MockMvc, private v
 
     @Test
     fun `the committed OpenAPI document is the one the API serves`() {
-        val pretty = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(served()) + "\n"
+        val served = served()
+        val pretty = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(served) + "\n"
         val generated = File("build/openapi/openapi.json").apply { parentFile.mkdirs(); writeText(pretty) }
         val committed = File("../docs/api/openapi.json")
-        assertTrue(committed.exists() && committed.readText() == pretty) {
+        // Compared as JSON, not as bytes: springdoc caches schemas statically, so a second Spring context in the same
+        // test JVM (RemoteRunnerTest) can change the order of keys inside a schema without changing the document.
+        assertTrue(committed.exists() && mapper.readTree(committed) == served) {
             "docs/api/openapi.json is out of date; from the repo root: cp control-plane/${generated.path} docs/api/openapi.json"
         }
     }
