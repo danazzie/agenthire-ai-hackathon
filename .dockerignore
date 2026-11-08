@@ -5,6 +5,7 @@
 !gradle.properties
 !gradle/
 !agents/
+!agent-runner/
 !control-plane/
 **/build/
 **/.gradle/

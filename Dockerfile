@@ -10,6 +10,8 @@ COPY gradle gradle
 # The Gradle distribution gets its own layer, so a code change does not download it again.
 RUN ./gradlew --version --no-daemon -q
 COPY agents agents
+# Not built here, but settings.gradle.kts includes it, so Gradle needs it present.
+COPY agent-runner agent-runner
 COPY control-plane control-plane
 RUN ./gradlew :control-plane:bootJar --no-daemon -q
 
