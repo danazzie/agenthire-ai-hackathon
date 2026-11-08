@@ -59,7 +59,7 @@ class AgentHosting(props: MutualStakeProperties, private val poller: OutboxPolle
     var runnerSeenAt: Instant? = null
 
     init {
-        remote = props.agents.remote
+        remote = props.agents.remoteOn
     }
 
     val host: String get() = if (remote) "astropods" else "in_process"

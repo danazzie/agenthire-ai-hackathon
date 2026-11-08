@@ -46,10 +46,13 @@ data class MutualStakeProperties(
         val timezone: String = "",
         val maxOffers: Int = 12,
         val writingAttempts: Int = 4,
-        val remote: Boolean = false,
+        /** Text, not a Boolean: Render can pass an unset value as empty, which must mean off rather than fail to start. */
+        val remote: String = "",
         val runnerToken: String = "",
     ) {
         val configured: Boolean get() = anthropicApiKey.isNotBlank()
+
+        val remoteOn: Boolean get() = remote.trim().equals("true", ignoreCase = true)
     }
 
     /** The sandboxed verifier runtime (Deno). An empty path means the pinned download in .tools, else PATH. */
