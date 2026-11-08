@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { api, ApiError, type Contract, type PayPalCall, type Status, type Verifier } from './api.ts'
+import { api, ApiError, runnerConnected, type Contract, type PayPalCall, type Status, type Verifier } from './api.ts'
 import { BuyerHome } from './components/BuyerMarket.tsx'
 import { DealView } from './components/DealView.tsx'
 import { BrandLockup, DeskChrome, Icon } from './components/DeskShell.tsx'
@@ -48,6 +48,7 @@ function Header({ status, desk, dealId, go }: { status: Status | null; desk: Des
         {status && (
           <p className="rounded-sm border border-rule bg-paper px-3 py-1.5 text-xs text-ink-soft">
             PayPal sandbox {status.paypalConfigured ? 'connected' : 'not configured'} · Claude agents {status.agentsConfigured ? 'on' : 'off'}
+            {status.agentsHost === 'astropods' && ` · on Astropods${runnerConnected(status) ? '' : ' (runner not connected)'}`}
           </p>
         )}
         <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">

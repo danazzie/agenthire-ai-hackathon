@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, ApiError, type Contract, type Status } from '../api.ts'
+import { api, ApiError, runnerConnected, type Contract, type Status } from '../api.ts'
 import { JAR_LABEL, money, stepOf } from '../model.ts'
 import { dealPath } from '../role.ts'
 import { NewJob } from './NewJob.tsx'
@@ -81,7 +81,7 @@ export function JudgeHome({ status, hash, go }: { status: Status | null; hash: s
         <Metric icon="hub" label="Session deals" value={`${deals.length}`} sub={open.length ? `${open.length} still moving` : 'None open'} />
         <Metric icon="lock" label="Held, not charged" value={money(held || 0)} sub={held ? 'PayPal authorizations' : 'No hold yet'} />
         <Metric icon="account_balance" label="PayPal sandbox" value={status?.paypalConfigured ? 'Connected' : 'Not configured'} sub={status ? (status.webhooksConfigured ? 'Webhooks on' : 'Webhooks off') : 'Status unavailable'} />
-        <Metric icon="psychology" label="Claude agents" value={status?.agentsConfigured ? 'On' : 'Off'} sub={status?.agentsConfigured ? 'A draft can negotiate' : 'Start a job below'} />
+        <Metric icon="psychology" label="Claude agents" value={status?.agentsConfigured ? 'On' : 'Off'} sub={status?.agentsHost === 'astropods' ? (runnerConnected(status) ? 'Negotiating on Astropods' : 'Astropods runner not connected') : status?.agentsConfigured ? 'A draft can negotiate' : 'Start a job below'} />
       </MetricRow>
 
       <div className="grid min-w-0 items-start gap-8 max-sm:order-1 lg:grid-cols-12">

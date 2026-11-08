@@ -110,7 +110,12 @@ export interface Contract {
 
 export interface Session { id: string; startedAt: string; capMinor: number; maxJobs: number; firstCaptureConfirmedAt: string | null }
 
-export interface Status { paypalConfigured: boolean; webhooksConfigured: boolean; agentsConfigured: boolean; parties: Party[]; session: Session }
+export interface Status { paypalConfigured: boolean; webhooksConfigured: boolean; agentsConfigured: boolean; parties: Party[]; session: Session; agentsHost?: 'in_process' | 'astropods'; runnerSeenAt?: string | null }
+
+/** With the agents on Astropods: whether their runner has asked for work in the last minute. */
+export function runnerConnected(status: Status): boolean {
+  return !!status.runnerSeenAt && Date.now() - Date.parse(status.runnerSeenAt) < 60_000
+}
 
 export interface ResetResult { archivedSessionId: string; session: Session; cancelled: string[] }
 
