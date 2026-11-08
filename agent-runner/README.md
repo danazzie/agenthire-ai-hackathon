@@ -25,13 +25,11 @@ You need an Astropods account, the `ast` CLI and Docker. Install the CLI with th
 ast login
 ```
 
-1. **Pick a shared token.** For example, run `openssl rand -hex 32`. You will set the same value on both sides.
+The order matters: turn on remote mode last, so no job waits for a runner that is not there yet.
 
-2. **On Render** (`hire-mind-api`, Environment), set these, then redeploy:
-   - `RUNNER_TOKEN`: the token from step 1.
-   - `AGENTS_REMOTE`: `true`.
+1. **Deploy the control plane with the runner endpoints.** Merge to `main`; Render redeploys `hire-mind-api`. Agents still run in process.
 
-   Until a runner is connected, agent jobs wait in the queue. `GET /api/status` shows `agentsHost` and `runnerSeenAt`.
+2. **Pick a shared token and set it on Render.** For example, run `openssl rand -hex 32`. On `hire-mind-api`, under Environment, set `RUNNER_TOKEN` to it. This is harmless while `AGENTS_REMOTE` is off.
 
 3. **Store the runner's secrets on Astropods.** Each command prompts for the value and masks it:
 
@@ -40,18 +38,22 @@ ast login
    ast secrets create ANTHROPIC_API_KEY
    ```
 
-4. **Push and deploy from the repo root.** `ast` reads [astropods.yml](../astropods.yml) and builds [Dockerfile](Dockerfile) with the repo root as its context.
+4. **Push and deploy from the repo root.** `ast` reads [astropods.yml](../astropods.yml) and builds [Dockerfile](Dockerfile) with the repo root as its context. `ast blueprint push` refuses a dirty working tree; commit first, or add `--allow-dirty`. Set `AGENT_TIMEZONE` to the same value as on Render.
 
    ```sh
    ast spec validate
    ast blueprint push
    ast blueprint deploy hiremind-agents --name "HireMind agents" --wait \
-     --var CONTROL_PLANE_URL=https://mutual-stake-api.onrender.com \
+     --var CONTROL_PLANE_URL=https://hire-mind-api.onrender.com \
      --var RUNNER_TOKEN=@ --var ANTHROPIC_API_KEY=@ \
-     --var AGENT_TIMEZONE=Europe/Istanbul
+     --var AGENT_TIMEZONE=<same as on Render>
    ```
 
-5. **Check it.** `ast agent list` shows the agent's hostname. Its page, behind Astropods sign-in, should say **Connected** within about 20 seconds, and the control plane's `/api/status` should show a fresh `runnerSeenAt`. Start a job on the HireMind screen, and each turn appears on the runner's page and in `ast agent logs`.
+   Until step 5, the runner's page shows `agents_in_process` as its last error, and the runner backs off and keeps trying.
+
+5. **Turn on remote mode.** On `hire-mind-api`, set `AGENTS_REMOTE` to `true`. Render redeploys the API.
+
+6. **Check it.** `ast agent list` shows the agent's hostname. Its page, behind Astropods sign-in, should say **Connected** within about 20 seconds. The control plane's [`/api/status`](https://hire-mind-api.onrender.com/api/status) should show `"agentsHost":"astropods"` and a fresh `runnerSeenAt`. Start a job on the HireMind screen; each turn appears on the runner's page and in `ast agent logs`.
 
 To go back to in-process agents, set `AGENTS_REMOTE` to `false` on Render. Steps still queued then run on the control plane.
 
@@ -59,7 +61,7 @@ To go back to in-process agents, set `AGENTS_REMOTE` to `false` on Render. Steps
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `CONTROL_PLANE_URL` | yes | The control plane, e.g. `https://mutual-stake-api.onrender.com` |
+| `CONTROL_PLANE_URL` | yes | The control plane, e.g. `https://hire-mind-api.onrender.com` |
 | `RUNNER_TOKEN` | yes | Same value as on the control plane |
 | `ANTHROPIC_API_KEY` | yes | Claude for both agents |
 | `AGENT_TIMEZONE` | no | Where "by 18:00" is read; default UTC |

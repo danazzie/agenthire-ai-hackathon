@@ -18,7 +18,7 @@ agent:
   inputs:
     - name: CONTROL_PLANE_URL
       datatype: string
-      description: The control plane's address, e.g. https://mutual-stake-api.onrender.com
+      description: The control plane's address, e.g. https://hire-mind-api.onrender.com
     - name: RUNNER_TOKEN
       datatype: string
       secret: true
