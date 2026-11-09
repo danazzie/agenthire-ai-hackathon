@@ -6,3 +6,4 @@ dependencyResolutionManagement {
 
 include("control-plane")
 include("agents")
+include("agent-runner")

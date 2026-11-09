@@ -49,6 +49,13 @@ services:
       # Where an agent reads "by 18:00", e.g. Europe/Istanbul. Empty means UTC.
       - key: AGENT_TIMEZONE
         sync: false
+      # "true" hands the negotiation and the seller's delivery to the agent runner on Astropods
+      # (agent-runner/README.md); empty or false keeps the agents in this service.
+      - key: AGENTS_REMOTE
+        sync: false
+      # The bearer token the runner sends; the same value goes into the Astropods deploy.
+      - key: RUNNER_TOKEN
+        sync: false
       # The static site's address, the only origin allowed to call the API from a browser.
       - key: WEB_URL
         sync: false

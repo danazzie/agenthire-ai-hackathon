@@ -48,6 +48,11 @@ mutualstake:
     anthropic-api-key: ${ANTHROPIC_API_KEY:}
     # Where "by 18:00" is read. Empty: the server's zone.
     timezone: ${AGENT_TIMEZONE:}
+    # On: the agent runner (agent-runner/, hosted on Astropods) negotiates and delivers; this service only queues
+    # the steps and keeps the money. Drafting a job from a sentence still runs here, with ANTHROPIC_API_KEY.
+    remote: ${AGENTS_REMOTE:false}
+    # The shared secret the runner sends as a bearer token. Empty: the runner endpoints are off.
+    runner-token: ${RUNNER_TOKEN:}
   verifier:
     # Empty: the pinned Deno in .tools if present, else `deno` on PATH (the Docker image ships it).
     deno-path: ${MUTUALSTAKE_DENO:}

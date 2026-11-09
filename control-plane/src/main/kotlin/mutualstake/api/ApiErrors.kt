@@ -1,5 +1,6 @@
 package mutualstake.api
 
+import mutualstake.agents.MoveRefusedException
 import mutualstake.contract.IllegalTransitionException
 import mutualstake.contract.StaleStateException
 import mutualstake.verifier.VerifierUnavailableException
@@ -19,6 +20,10 @@ import java.sql.SQLException
 class ApiErrors {
     @ExceptionHandler(ApiException::class)
     fun api(e: ApiException) = problem(e.status, e.code, e.message)
+
+    /** A move the control plane refused: the agent gets the reason and one more try, wherever it runs. */
+    @ExceptionHandler(MoveRefusedException::class)
+    fun refused(e: MoveRefusedException) = problem(HttpStatus.UNPROCESSABLE_ENTITY, e.code, e.message, refused = true)
 
     @ExceptionHandler(IllegalTransitionException::class)
     fun illegal(e: IllegalTransitionException) = problem(HttpStatus.CONFLICT, "illegal_transition", e.message)
@@ -50,10 +55,11 @@ class ApiErrors {
         }
     }
 
-    private fun problem(status: HttpStatus, code: String, detail: String?): ResponseEntity<ProblemDetail> {
+    private fun problem(status: HttpStatus, code: String, detail: String?, refused: Boolean = false): ResponseEntity<ProblemDetail> {
         val body = ProblemDetail.forStatusAndDetail(status, detail?.lineSequence()?.first() ?: code)
         body.title = code
         body.setProperty("code", code)
+        if (refused) body.setProperty("refused", true)
         return ResponseEntity.status(status).body(body)
     }
 }

@@ -14,6 +14,8 @@ mutualstake:
   agents:
     anthropic-api-key: ""
     timezone: Europe/Istanbul
+    # The runner endpoints are tested with this token (RunnerFlowTest); remote mode is switched on per test.
+    runner-token: test-runner-token
   paypal:
     client-id: ""
     client-secret: ""
