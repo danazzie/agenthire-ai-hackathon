@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, ApiError, type Contract, type Status } from '../api.ts'
+import { api, type Contract, type SellerAgent, type Status } from '../api.ts'
 import { money, stepOf } from '../model.ts'
-import { scriptedDeal, US1_SENTENCE } from '../scripted.ts'
+import { US1_SENTENCE } from '../scripted.ts'
 import { dealPath } from '../role.ts'
 import { Icon } from './DeskShell.tsx'
+import { NewJob } from './NewJob.tsx'
 import infoMark from '../assets/figma-info.svg'
 import plusMark from '../assets/figma-plus.svg'
 import shieldMark from '../assets/figma-shield.svg'
 import walletMark from '../assets/figma-wallet.svg'
 
-type Cat = 'all' | 'copy' | 'data' | 'visual' | 'code'
 type JobFilter = 'all' | 'active' | 'completed'
 
-const AGENTS: { id: string; cat: Cat; name: string; by: string; tag: string; icon: string; rate: string; done: string; sla: string; bio: string; stake: string; stakeNote: string; price: string; unit: string; live: boolean }[] = [
-  { id: 'maya', cat: 'copy', name: "Maya's agent", by: 'The seller in this demo · 50-word blurbs', tag: 'Copy', icon: 'edit_document', rate: '—', done: 'this session', sla: 'by 18:00', bio: 'Writes the coffee-shop blurb. Fee $1.50 held, not charged. Maya posts a $0.40 bond. The compiled test decides who is paid.', stake: '$0.40 bond, held not charged', stakeNote: 'Released if the test passes', price: '$1.50', unit: '/ task', live: true },
-  { id: 'vector', cat: 'visual', name: 'VectorCraft Visual Agent', by: 'Not seeded in this control plane', tag: 'Visual', icon: 'polyline', rate: '99.1%', done: '189', sla: '~25m', bio: 'Responsive inline SVGs. Shown so the catalog matches the Stitch marketplace. You cannot hire it here.', stake: '$1.00 bond', stakeNote: 'Not in this demo', price: '$3.00', unit: '/ set', live: false },
-  { id: 'scraper', cat: 'data', name: 'DataScraper Node #9', by: 'Not seeded in this control plane', tag: 'Data', icon: 'data_table', rate: '100%', done: '720', sla: '~5m', bio: 'CSV extractions. Shown for the marketplace layout. You cannot hire it here.', stake: '$0.50 bond', stakeNote: 'Not in this demo', price: '$0.90', unit: '/ 500 rows', live: false },
-  { id: 'audit', cat: 'code', name: 'AuditSentinel Prompt Reviewer', by: 'Not seeded in this control plane', tag: 'Code', icon: 'policy', rate: '99.5%', done: '340', sla: '~10m', bio: 'Prompt-injection audits. Shown for the marketplace layout. You cannot hire it here.', stake: '$0.75 bond', stakeNote: 'Not in this demo', price: '$2.20', unit: '/ audit', live: false },
+/** A control plane built before Maya's roster has no GET /api/agents/sellers; it still runs the blurb writer. */
+const BLURB_ONLY: SellerAgent[] = [
+  { id: 'blurb', title: 'Blurb writer', does: 'short marketing blurbs: a paragraph about a business, a product line or an event', usualMinor: 180, example: US1_SENTENCE },
 ]
 
 const CARD = 'rounded-xl border border-[#e5e7eb] bg-white shadow-[0px_2px_8px_0px_rgba(15,23,42,0.04)]'
@@ -137,17 +135,18 @@ function SessionGuardrails({ status, deals }: { status: Status | null; deals: Co
 
 export function BuyerHome({ status, hash, go }: { status: Status | null; hash: string; go: (p: string) => void }) {
   const [deals, setDeals] = useState<Contract[]>([])
-  const [cat, setCat] = useState<Cat>('all')
+  const [sellers, setSellers] = useState<SellerAgent[] | null>(null)
+  const [pick, setPick] = useState<string>('all')
   const [query, setQuery] = useState('')
-  const [bond, setBond] = useState(20)
   const [jobFilter, setJobFilter] = useState<JobFilter>('all')
-  const [hiring, setHiring] = useState(false)
-  const [openHire, setOpenHire] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [sentence, setSentence] = useState(US1_SENTENCE)
+  // The agent whose Hire button opened the form; null for "Post a job", undefined while the form is closed.
+  const [hire, setHire] = useState<SellerAgent | null | undefined>(undefined)
 
   const load = useCallback(() => { api.contracts().then(setDeals).catch(() => setDeals([])) }, [])
   useEffect(load, [load])
+  useEffect(() => {
+    api.sellers().then((s) => setSellers(s.length ? s : BLURB_ONLY)).catch(() => setSellers(BLURB_ONLY))
+  }, [])
   useEffect(() => {
     const id = hash === '#buyer-deals' ? 'buyer-deals' : hash === '#buyer-activity' ? 'buyer-activity' : hash === '#buyer-payments' ? 'buyer-payments' : ''
     if (!id) return
@@ -173,27 +172,13 @@ export function BuyerHome({ status, hash, go }: { status: Status | null; hash: s
   const latest = deals
     .flatMap((d) => d.transitions.map((t) => ({ ...t, deal: d })))
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0]
-  const shown = AGENTS.filter((a) => (cat === 'all' || a.cat === cat) && a.name.toLowerCase().includes(query.toLowerCase()))
-
-  async function hireMaya() {
-    setHiring(true)
-    setError(null)
-    try {
-      go(dealPath('buyer', (await scriptedDeal()).id))
-    } catch (e) {
-      setError(e instanceof ApiError ? `${e.code}: ${e.message}` : String(e))
-    } finally {
-      setHiring(false)
-    }
-  }
-
-  const cats: [Cat, string, string, number][] = [
-    ['all', 'apps', 'All agents', 4],
-    ['copy', 'edit_note', 'Copy & content', 1],
-    ['data', 'database', 'Data & research', 1],
-    ['visual', 'polyline', 'Visual & SVG', 1],
-    ['code', 'terminal', 'Code & scraping', 1],
-  ]
+  const roster = sellers ?? []
+  const q = query.trim().toLowerCase()
+  const shown = roster.filter((a) => (pick === 'all' || a.id === pick) && `${a.title} ${a.does}`.toLowerCase().includes(q))
+  // Without Claude only the scripted blurb deal runs, so the other agents cannot be hired. Unknown while status loads.
+  const claudeOff = status?.agentsConfigured === false
+  const hireable = (a: SellerAgent) => !claudeOff || a.id === 'blurb'
+  const picks: [string, string][] = [['all', `All agents · ${roster.length}`], ...roster.map((a): [string, string] => [a.id, a.title])]
 
   const metrics: { label: string; value: string; sub: string }[] = [
     { label: 'Authorized · PayPal', value: session ? money(authorized) : '—', sub: 'Held, not charged' },
@@ -215,7 +200,7 @@ export function BuyerHome({ status, hash, go }: { status: Status | null; hash: s
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <h1 className="min-w-0 flex-1 text-[30px] leading-normal text-[#0f172a]">Your work, under control.</h1>
-          <button type="button" onClick={() => { setOpenHire(true); setError(null) }} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#2563eb] bg-[#2563eb] px-4 py-[11px] text-[13px] font-semibold text-white shadow-[0px_6px_16px_0px_rgba(37,99,235,0.2)]">
+          <button type="button" onClick={() => setHire(null)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#2563eb] bg-[#2563eb] px-4 py-[11px] text-[13px] font-semibold text-white shadow-[0px_6px_16px_0px_rgba(37,99,235,0.2)]">
             <img src={plusMark} alt="" />
             Post a job
           </button>
@@ -266,7 +251,7 @@ export function BuyerHome({ status, hash, go }: { status: Status | null; hash: s
             </div>
             <div className="h-px bg-[#e5e7eb]" />
             {shownJobs.length === 0 ? (
-              <p className="text-[13px] text-[#64748b]">None yet. Post a job to start the scripted $1.50 / $0.40 hire.</p>
+              <p className="text-[13px] text-[#64748b]">None yet. Post a job, or hire one of Maya's agents below.</p>
             ) : shownJobs.map((d) => {
               const statusPill = jobStatus(d)
               const fee = feeLine(d)
@@ -313,58 +298,53 @@ export function BuyerHome({ status, hash, go }: { status: Status | null; hash: s
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-[17px] font-semibold text-[#0f172a]">Agents</h2>
-            <p className="text-[13px] text-[#64748b]">Maya is the only seller in this demo. The other cards stay here so the catalog is visible, and they cannot be hired.</p>
+            <p className="text-[13px] text-[#64748b]">Maya sells short writing jobs through {roster.length === 1 ? 'one agent' : `${roster.length} agents`}, all paid into her one PayPal account. Each one negotiates its own price and posts a bond when the terms lock.</p>
           </div>
         </div>
         <div className="desk-metrics flex gap-2 overflow-x-auto pb-1 lg:hidden">
-          {cats.map(([id, , label]) => (
-            <button key={id} type="button" onClick={() => setCat(id)} className={`min-h-11 shrink-0 rounded-full px-4 text-[13px] font-semibold ${cat === id ? 'bg-[#0f172a] text-white' : 'bg-white text-[#64748b] shadow-sm'}`}>{label}</button>
+          {picks.map(([id, label]) => (
+            <button key={id} type="button" onClick={() => setPick(id)} className={`min-h-11 shrink-0 rounded-full px-4 text-[13px] font-semibold ${pick === id ? 'bg-[#0f172a] text-white' : 'bg-white text-[#64748b] shadow-sm'}`}>{label}</button>
           ))}
         </div>
         <div className="grid min-w-0 items-start gap-6 lg:grid-cols-12">
           <aside className="hidden flex-col gap-6 rounded-xl border border-[#e5e7eb] bg-white p-6 lg:col-span-4 lg:flex xl:col-span-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-[15px] font-semibold text-[#0f172a]">Filter catalog</h3>
-              <button type="button" onClick={() => { setCat('all'); setQuery(''); setBond(20) }} className="text-[11px] font-semibold text-[#64748b]">Reset</button>
+              <h3 className="text-[15px] font-semibold text-[#0f172a]">Filter agents</h3>
+              <button type="button" onClick={() => { setPick('all'); setQuery('') }} className="text-[11px] font-semibold text-[#64748b]">Reset</button>
             </div>
             <label className="flex flex-col gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748b]">
               Search
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. Maya, copy…" className="min-h-11 w-full rounded-lg border border-[#e5e7eb] px-3 text-sm font-normal normal-case tracking-normal text-[#0f172a]" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. tagline, email…" className="min-h-11 w-full rounded-lg border border-[#e5e7eb] px-3 text-sm font-normal normal-case tracking-normal text-[#0f172a]" />
             </label>
             <div className="flex flex-col gap-1.5">
-              {cats.map(([id, , label, n]) => (
-                <button key={id} type="button" onClick={() => setCat(id)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] ${cat === id ? 'bg-[#eff6ff] font-semibold text-[#1e40af]' : 'text-[#64748b]'}`}>
+              {picks.map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setPick(id)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] ${pick === id ? 'bg-[#eff6ff] font-semibold text-[#1e40af]' : 'text-[#64748b]'}`}>
                   <span>{label}</span>
-                  <span className="text-[11px]">{n}</span>
+                  {id !== 'all' && <span className="text-[11px]">{money(roster.find((a) => a.id === id)?.usualMinor ?? 0)}</span>}
                 </button>
               ))}
             </div>
-            <label className="flex flex-col gap-2.5">
-              <span className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-[#64748b]">Min bond <span className="text-[#2563eb]">{bond}% bond</span></span>
-              <input type="range" min={10} max={50} step={5} value={bond} onChange={(e) => setBond(Number(e.target.value))} className="accent-[#2563eb]" />
-            </label>
           </aside>
           <div className="flex min-w-0 flex-col gap-4 lg:col-span-8 xl:col-span-9">
             <label className="relative lg:hidden">
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search agents" aria-label="Search agents" className="min-h-11 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 text-sm" />
             </label>
+            {sellers === null && <p className="text-[13px] text-[#64748b]">Loading Maya's agents.</p>}
+            {sellers !== null && shown.length === 0 && <p className="text-[13px] text-[#64748b]">No agent matches. Reset the filter to see all of them.</p>}
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               {shown.map((a) => (
                 <article key={a.id} className={`flex min-w-0 flex-col gap-4 p-5 ${CARD}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="text-[15px] font-semibold text-[#0f172a]">{a.name}</h3>
-                      <p className="text-[12px] text-[#64748b]">{a.by}</p>
-                    </div>
-                    <span className="rounded-md bg-[#f3f4f6] px-2 py-1 text-[11px] text-[#64748b]">{a.tag}</span>
+                  <div className="min-w-0">
+                    <h3 className="text-[15px] font-semibold text-[#0f172a]">Maya's {a.title.toLowerCase()}</h3>
+                    <p className="text-[12px] text-[#64748b]">Writes {a.does}</p>
                   </div>
-                  <p className="text-[13px] leading-normal text-[#64748b]">{a.bio}</p>
+                  <p className="text-[13px] leading-normal text-[#64748b]"><span className="text-[11px] font-bold uppercase tracking-wider">Try </span>{a.example}</p>
                   <div className="flex items-end justify-between gap-3 border-t border-[#e5e7eb] pt-4">
-                    <p className="text-[22px] font-bold leading-none text-[#0f172a]">{a.price} <span className="text-[12px] font-normal text-[#64748b]">{a.unit}</span></p>
-                    {a.live ? (
-                      <button type="button" onClick={() => { setOpenHire(true); setError(null) }} className="min-h-11 rounded-lg bg-[#2563eb] px-4 text-[13px] font-semibold text-white">Hire Maya</button>
+                    <p className="text-[22px] font-bold leading-none text-[#0f172a]">{money(a.usualMinor)} <span className="text-[12px] font-normal text-[#64748b]">usual price</span></p>
+                    {hireable(a) ? (
+                      <button type="button" onClick={() => setHire(a)} className="min-h-11 rounded-lg bg-[#2563eb] px-4 text-[13px] font-semibold text-white">Hire</button>
                     ) : (
-                      <span className="text-[13px] font-semibold text-[#64748b]">Not in this demo</span>
+                      <span className="text-right text-[12px] font-semibold text-[#64748b]">Needs Claude<br />(no API key set)</span>
                     )}
                   </div>
                 </article>
@@ -374,31 +354,15 @@ export function BuyerHome({ status, hash, go }: { status: Status | null; hash: s
         </div>
       </section>
 
-      {openHire && (
+      {hire !== undefined && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-labelledby="hire-title">
-          <div className="flex max-h-[92svh] w-full max-w-lg flex-col gap-5 overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl">
+          <div className="flex max-h-[92svh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl">
             <div className="flex items-center justify-between">
-              <h3 id="hire-title" className="text-[17px] font-semibold text-[#0f172a]">Hold the fee, not a charge</h3>
-              <button type="button" onClick={() => setOpenHire(false)} className="p-1 text-[#64748b]" aria-label="Close"><Icon name="close" /></button>
+              <h3 id="hire-title" className="text-[17px] font-semibold text-[#0f172a]">{hire ? `Hire Maya's ${hire.title.toLowerCase()}` : 'Post a job'}</h3>
+              <button type="button" onClick={() => setHire(undefined)} className="p-1 text-[#64748b]" aria-label="Close"><Icon name="close" /></button>
             </div>
-            <dl className="space-y-2 rounded-xl bg-[#f8fafc] p-4 text-sm">
-              <div className="flex justify-between"><dt className="text-[#64748b]">Seller</dt><dd className="font-semibold text-[#0f172a]">Maya's agent</dd></div>
-              <div className="flex justify-between"><dt className="text-[#64748b]">Your fee (held)</dt><dd className="font-bold text-[#0f172a]">$1.50</dd></div>
-              <div className="flex justify-between border-t border-[#e5e7eb] pt-2"><dt className="font-semibold text-[#2563eb]">Maya's bond (held)</dt><dd className="font-bold text-[#2563eb]">$0.40</dd></div>
-            </dl>
-            <label className="flex flex-col gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748b]">
-              Job sentence
-              <textarea rows={3} value={sentence} onChange={(e) => setSentence(e.target.value)} className="rounded-lg border border-[#e5e7eb] p-3 text-sm font-normal normal-case tracking-normal text-[#0f172a]" />
-            </label>
-            <p className="text-[13px] text-[#64748b]">The scripted job ignores this box and runs the prototype negotiation through the same API. Nothing is charged.</p>
-            {error && <p role="alert" className="text-sm text-red-800">{error}</p>}
-            <div className="flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={() => setOpenHire(false)} className="min-h-11 px-4 text-[13px] font-semibold text-[#64748b]">Cancel</button>
-              <button type="button" disabled={hiring} onClick={hireMaya} className="min-h-11 rounded-lg bg-[#2563eb] px-5 text-[13px] font-semibold text-white disabled:opacity-40">
-                {hiring ? 'Starting…' : 'Start the scripted job'}
-              </button>
-            </div>
-            {status && !status.agentsConfigured && <p className="text-[12px] text-[#64748b]">Claude is optional. The scripted job does not need it.</p>}
+            <p className="text-[13px] text-[#64748b]">Your agent turns the sentence into a price cap, a deadline and a compiled test, and picks which of Maya's agents does it. PayPal holds the fee; nothing is charged until the test passes.</p>
+            <NewJob key={hire?.id ?? 'post'} heading="" initial={hire?.example ?? US1_SENTENCE} agents={status?.agentsConfigured ?? false} open={(id) => go(dealPath('buyer', id))} />
           </div>
         </div>
       )}

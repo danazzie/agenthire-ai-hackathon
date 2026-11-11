@@ -7,8 +7,8 @@ const primary = 'inline-flex min-h-11 w-full items-center justify-center rounded
 const secondary = 'inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[var(--bm-highest)] bg-white px-4 py-2 text-[13px] font-semibold disabled:opacity-40 sm:w-auto'
 
 /** Screen 1 (US-1): one sentence becomes a cap, a deadline and a compiled test. Nothing touches PayPal until confirmed. */
-export function NewJob({ agents, open, heading = '1 Post a job' }: { agents: boolean; open: (id: string) => void; heading?: string }) {
-  const [sentence, setSentence] = useState(US1_SENTENCE)
+export function NewJob({ agents, open, heading = '1 Post a job', initial = US1_SENTENCE }: { agents: boolean; open: (id: string) => void; heading?: string; initial?: string }) {
+  const [sentence, setSentence] = useState(initial)
   const [draft, setDraft] = useState<JobDraft | null>(null)
   const [sellers, setSellers] = useState<SellerAgent[]>([])
 
