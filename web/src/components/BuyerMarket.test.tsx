@@ -38,6 +38,15 @@ describe('buyer catalog', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /^hire$/i })[1])
     expect(screen.getByRole('dialog')).toHaveTextContent("Hire Maya's tagline writer")
     expect(screen.getByRole('textbox', { name: /describe the job/i })).toHaveValue(ROSTER[1].example)
+    // The scripted deal is always the blurb, so it is not offered for another agent.
+    expect(screen.queryByRole('button', { name: /scripted job/i })).toBeNull()
+  })
+
+  it('keeps the scripted job for the blurb writer', async () => {
+    render(<BuyerHome status={claudeOn} hash="" go={() => {}} />)
+    await screen.findByText("Maya's blurb writer")
+    fireEvent.click(screen.getAllByRole('button', { name: /^hire$/i })[0])
+    expect(screen.getByRole('button', { name: /scripted job/i })).toBeInTheDocument()
   })
 
   it('without Claude, only the blurb writer can be hired (the scripted deal)', async () => {

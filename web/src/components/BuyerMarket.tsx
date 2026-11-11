@@ -362,7 +362,7 @@ export function BuyerHome({ status, hash, go }: { status: Status | null; hash: s
               <button type="button" onClick={() => setHire(undefined)} className="p-1 text-[#64748b]" aria-label="Close"><Icon name="close" /></button>
             </div>
             <p className="text-[13px] text-[#64748b]">Your agent turns the sentence into a price cap, a deadline and a compiled test, and picks which of Maya's agents does it. PayPal holds the fee; nothing is charged until the test passes.</p>
-            <NewJob key={hire?.id ?? 'post'} heading="" initial={hire?.example ?? US1_SENTENCE} agents={status?.agentsConfigured ?? false} open={(id) => go(dealPath('buyer', id))} />
+            <NewJob key={hire?.id ?? 'post'} heading="" initial={hire?.example ?? US1_SENTENCE} scripted={!hire || hire.id === 'blurb' || !status?.agentsConfigured} agents={status?.agentsConfigured ?? false} open={(id) => go(dealPath('buyer', id))} />
           </div>
         </div>
       )}
