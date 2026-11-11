@@ -55,6 +55,23 @@ export JAVA_HOME="$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home"
 cp .env.example .env
 ```
 
+The control plane reads `.env` from the repo root by itself, so nothing needs exporting. Four values are required: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BUYER_EMAIL` and `PAYPAL_SELLER_EMAIL`. Without them the API still starts, but every PayPal call is refused with `no_credentials`, and a party with no email is not created. Everything else has a local default:
+
+| Variable | Default | Set it when |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | empty: agents off | you want Claude to draft, negotiate and deliver |
+| `PAYPAL_BASE_URL` | the sandbox | never; it is the only URL the client accepts |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | `localhost`, `5432`, `mutualstake` ×3 | your Postgres is not the one in `docker-compose.yml` |
+| `PORT` | `8088` | 8088 is taken (also change the proxy in `web/vite.config.ts`) |
+| `PUBLIC_URL` | `http://localhost:8088` | PayPal must send the payer back somewhere else |
+| `WEB_URL` | empty: no cross-origin calls | only when deployed; locally the Vite proxy makes it unnecessary |
+| `PAYPAL_WEBHOOK_ID` | empty: the outbox polls PayPal | you registered a sandbox webhook |
+| `AGENT_TIMEZONE` | the server's zone | "by 18:00" should mean another zone |
+| `AGENTS_REMOTE`, `RUNNER_TOKEN` | off | the agents run on Astropods (see Deploy) |
+| `MUTUALSTAKE_DENO` | the pinned Deno in `.tools` | you want another Deno binary |
+
+The screen needs no `.env` locally. `VITE_API_URL` matters only to a production build, and a build without it calls the live API on Render, so `npm run build && npm run preview` does not talk to your local control plane.
+
 **3. Start Postgres and the control plane.** The first `bootRun` downloads the pinned Deno into `.tools` and checks its SHA-256. Flyway then migrates the database, and the API listens on :8088.
 
 ```sh
@@ -70,13 +87,16 @@ cd web && npm ci && npm run dev
 
 **5. Run a deal:**
 
-1. Press **Scripted job**. The two agents negotiate $1.50 with a $0.40 bond.
-2. Under **Fund**, press **Approve as buyer**, then **Approve as seller**. Log in with the matching sandbox account each time.
-3. Deliver: the junk text fails the test, and the 50-word blurb passes it.
-4. Press **Confirm** for the session's first capture.
-5. Watch the jars settle.
+1. Choose the **Judge** desk, which sees both sides. (The **Buyer** and **Seller** desks each show one side.)
+2. Press **Scripted job (no Claude)**. The two agents negotiate $1.50 with a $0.40 bond.
+3. Under **Fund**, press **Approve as buyer**, then **Approve as seller**. Log in with the matching sandbox account each time.
+4. Deliver: **Scripted junk delivery** fails the test, and **Scripted 50-word delivery** passes it.
+5. Press **Confirm the first capture** for the session's first capture.
+6. Watch the jars settle.
 
-**Reset demo** on the home page archives the session and starts a clean one. It voids any hold it can.
+With `ANTHROPIC_API_KEY` set, you can instead type a job in the box and let the agents draft it. On the Buyer desk you can hire any of Maya's six agents, but the scripted job is offered only for the blurb writer.
+
+**Reset demo** on the Judge desk archives the session and starts a clean one. It voids any hold it can.
 
 The same two-branch run is scripted too. It prints four approve links, then delivers, confirms and writes the report:
 
