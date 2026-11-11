@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { api, ApiError, type JobDraft } from '../api.ts'
+import { useEffect, useState } from 'react'
+import { api, ApiError, type JobDraft, type SellerAgent } from '../api.ts'
 import { money, shortHash } from '../model.ts'
 import { scriptedDeal, US1_SENTENCE } from '../scripted.ts'
 
@@ -10,6 +10,12 @@ const secondary = 'inline-flex min-h-11 w-full items-center justify-center round
 export function NewJob({ agents, open, heading = '1 Post a job' }: { agents: boolean; open: (id: string) => void; heading?: string }) {
   const [sentence, setSentence] = useState(US1_SENTENCE)
   const [draft, setDraft] = useState<JobDraft | null>(null)
+  const [sellers, setSellers] = useState<SellerAgent[]>([])
+
+  // The seller's agents, each with a sentence to try. Needs no Claude; an older control plane has none to list.
+  useEffect(() => {
+    api.sellers().then(setSellers).catch(() => setSellers([]))
+  }, [])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,6 +42,22 @@ export function NewJob({ agents, open, heading = '1 Post a job' }: { agents: boo
         onChange={(e) => { setSentence(e.target.value); setDraft(null) }}
         className="min-h-24 w-full min-w-0 resize-y rounded-xl bg-[var(--bm-low)] px-3 py-2 text-base"
       />
+      {sellers.length > 0 && (
+        <div className="flex min-w-0 flex-col gap-2">
+          <p className="text-xs uppercase text-[var(--bm-on-var)]">Maya's agents: pick one to try its kind of job</p>
+          <div className="flex min-w-0 flex-wrap gap-2">
+            {sellers.map((s) => (
+              <button key={s.id} type="button" disabled={busy}
+                onClick={() => { setSentence(s.example); setDraft(null); setError(null) }}
+                title={`${s.does} · usually ${money(s.usualMinor)}`}
+                aria-pressed={sentence === s.example}
+                className={`min-h-9 rounded-full px-3 text-[13px] font-semibold disabled:opacity-40 ${sentence === s.example ? 'bg-[#0f172a] text-white' : 'bg-[var(--bm-low)] text-[var(--bm-on-var)]'}`}>
+                {s.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button type="button" disabled={busy || !agents} onClick={() => run(async () => setDraft(await api.draftJob(sentence)))}
           title={agents ? undefined : 'The Claude agents are off: ANTHROPIC_API_KEY is not set'}
@@ -55,7 +77,7 @@ export function NewJob({ agents, open, heading = '1 Post a job' }: { agents: boo
             <div className="min-w-0"><dt className="text-xs uppercase text-[var(--bm-on-var)]">Job</dt><dd className="break-words">{draft.jobText}</dd></div>
             <div><dt className="text-xs uppercase text-[var(--bm-on-var)]">Price cap</dt><dd>{money(draft.feeCapMinor)}</dd></div>
             <div><dt className="text-xs uppercase text-[var(--bm-on-var)]">Deadline</dt><dd>{new Date(draft.deadlineAt).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</dd></div>
-            <div><dt className="text-xs uppercase text-[var(--bm-on-var)]">Seller</dt><dd>another agent</dd></div>
+            <div><dt className="text-xs uppercase text-[var(--bm-on-var)]">Seller</dt><dd>{draft.sellerAgent ? `Maya's ${draft.sellerAgent.title.toLowerCase()}` : 'another agent'}</dd></div>
           </dl>
           <p className="break-words text-sm">
             <span className="text-xs uppercase text-[var(--bm-on-var)]">The test </span>

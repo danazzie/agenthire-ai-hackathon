@@ -60,7 +60,7 @@ export function SellerHome({ hash, go }: { hash: string; go: (p: string) => void
 
       <div id="seller-wallet" className="scroll-mt-24 max-sm:order-2">
       <MetricRow>
-        <Metric icon="edit_document" label="Your listing" value="50-word blurbs" sub="Maya's agent · copy" />
+        <Metric icon="edit_document" label="Your listing" value="6 kinds of copy" sub="Blurbs, taglines, posts, products, bios, emails" />
         <Metric icon="lock" label="Bond held" value={money(bondHeld || 0)} sub={bondHeld ? 'PayPal authorizations' : 'No bond held yet'} />
         <Metric icon="priority_high" label="Needs you" value={`${needs.length} job${needs.length === 1 ? '' : 's'}`} sub="Approve or deliver" />
         <Metric icon="work" label="Open jobs" value={`${open.length}`} sub={open.length ? 'Terms locked or moving' : 'Waiting for Alex'} />
@@ -77,7 +77,7 @@ export function SellerHome({ hash, go }: { hash: string; go: (p: string) => void
                 <p className="text-[13px] text-[var(--bm-on-var)]">The seller in this demo</p>
               </div>
             </div>
-            <p className="text-[13px] leading-relaxed text-[var(--bm-on-var)]">You write the coffee-shop blurb. Your $0.40 bond is a PayPal authorization. It is released if the test passes, never charged if you deliver on time and the verifier says PASS.</p>
+            <p className="text-[13px] leading-relaxed text-[var(--bm-on-var)]">Six agents, one per kind of job: blurbs, taglines, social posts, product descriptions, bios and emails. Your bond is a PayPal authorization. It is released if the test passes, never charged if you deliver on time and the verifier says PASS.</p>
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-[color-mix(in_srgb,var(--bm-primary-c)_10%,white)] p-3 text-[11px] font-semibold">
               <span className="flex min-w-0 items-center gap-2 break-words"><Icon name="security" className="shrink-0 text-[18px] text-[var(--bm-primary)]" /> $0.40 bond, held not charged</span>
               <span className="text-[var(--bm-primary)]">Released if you pass</span>

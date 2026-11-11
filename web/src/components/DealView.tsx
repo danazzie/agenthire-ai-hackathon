@@ -199,7 +199,7 @@ function PostJobPanel({ deal, verifier }: { deal: Contract; verifier: Verifier |
       <Field label="The person's sentence">{deal.sentence ? `“${deal.sentence}”` : 'Scripted job (Claude agents off)'}</Field>
       <Field label="Job">{deal.jobText}</Field>
       <Field label="Price cap">{money(deal.feeCapMinor)}</Field>
-      <Field label="Seller">another agent ({deal.seller.displayName})</Field>
+      <Field label="Seller">{deal.sellerAgent ? `${deal.seller.displayName}'s ${deal.sellerAgent.title.toLowerCase()}` : `another agent (${deal.seller.displayName})`}</Field>
       <div className="sm:col-span-2">
         <TestSource verifier={verifier} />
       </div>
@@ -486,7 +486,7 @@ export function DealView({ deal, verifier, calls, actions = {} }: { deal: Contra
           <Messages deal={deal} party={deal.buyer.handle} />
         </Pane>
         <Jars deal={deal} className="order-1 lg:order-none" />
-        <Pane className="order-4 lg:order-none" title={deal.seller.displayName} subtitle="the seller's agent">
+        <Pane className="order-4 lg:order-none" title={deal.seller.displayName} subtitle={deal.sellerAgent ? `the seller's ${deal.sellerAgent.title.toLowerCase()}` : "the seller's agent"}>
           <Messages deal={deal} party={deal.seller.handle} />
           {deal.delivery && <p className="break-words text-sm text-[var(--bm-on-var)]">Delivered {time(deal.delivery.submittedAt)}: “{deal.delivery.text.slice(0, 90)}{deal.delivery.text.length > 90 ? '…' : ''}”</p>}
         </Pane>
