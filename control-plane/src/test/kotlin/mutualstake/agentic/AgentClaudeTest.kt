@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import mutualstake.agents.AnthropicClaude
 import mutualstake.agents.BuyerAgent
 import mutualstake.agents.Negotiation
+import mutualstake.agents.ProtocolPort
 import mutualstake.agents.SellerAgent
+import mutualstake.agents.SellerSpecialty
 import mutualstake.agents.WriteOutcome
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.ContractState
@@ -24,7 +26,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.simple.JdbcClient
 import java.io.File
@@ -60,8 +63,10 @@ class AgentClaudeTest @Autowired constructor(
         }
     }
 
-    @Test
-    fun `real Claude drafts, negotiates and writes a delivery that passes the US-1 test`() {
+    /** Each of Maya's agents, on the sentence the judges see for it; the blurb's is the US-1 sentence. */
+    @ParameterizedTest
+    @EnumSource(SellerSpecialty::class)
+    fun `real Claude drafts, negotiates and writes a delivery that passes the test`(specialty: SellerSpecialty) {
         assumeTrue(key.isNotBlank(), "no ANTHROPIC_API_KEY")
         fake.reset()
         clock.reset()
@@ -71,13 +76,14 @@ class AgentClaudeTest @Autowired constructor(
         val buyer = BuyerAgent(claude, ZoneId.of("Europe/Istanbul"))
         val seller = SellerAgent(claude)
 
-        val job = buyer.draftJob("50-word coffee-shop blurb, max \$2, by 18:00, no lorem ipsum", clock.instant())
-        println("draft: cap ${job.feeCapCents}, deadline ${job.deadlineAt}, test ${job.test}")
-        assertEquals(200, job.feeCapCents)
+        val job = buyer.draftJob(specialty.example, clock.instant())
+        println("${specialty.id} draft: cap ${job.feeCapCents}, deadline ${job.deadlineAt}, agent ${job.sellerAgent}, test ${job.test}")
+        assertEquals(specialty.id, job.sellerAgent, "the buyer's agent picked the right one of Maya's agents")
+        if (specialty == SellerSpecialty.BLURB) assertEquals(200, job.feeCapCents)
         val verifier = verifierService.compile(job.jobText, mapper.readTree(job.test))
 
         val contract = negotiationService.open(parties.byHandle("alex")!!, "maya", job.jobText, Money(job.feeCapCents))
-        jobs.insert(AgentJob(contract.id, "50-word coffee-shop blurb, max \$2, by 18:00, no lorem ipsum", verifier.id, job.deadlineAt))
+        jobs.insert(AgentJob(contract.id, specialty.example, verifier.id, job.deadlineAt, job.sellerAgent))
         val negotiation = Negotiation(port, buyer, seller)
         var party = "alex"
         repeat(12) {
@@ -95,8 +101,15 @@ class AgentClaudeTest @Autowired constructor(
             outbox.enqueue(h.id, OutboxType.CHECK_ORDER)
         }
         poller.drain()
-        val outcome = seller.write(port.deal(contract.id), port)
-        println("seller: $outcome")
+        // The same port, saying out loud what the agent delivered, so a person can read the work, not just the verdict.
+        val showing = object : ProtocolPort by port {
+            override fun deliver(contractId: java.util.UUID, party: String, text: String) {
+                println("${specialty.id} delivered: $text")
+                port.deliver(contractId, party, text)
+            }
+        }
+        val outcome = seller.write(port.deal(contract.id), showing)
+        println("${specialty.id} seller: $outcome")
         assertTrue(outcome is WriteOutcome.Delivered, "$outcome")
         poller.drain()
         assertEquals(ContractState.PASS, contracts.find(contract.id)!!.state)

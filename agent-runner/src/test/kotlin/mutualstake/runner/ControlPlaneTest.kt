@@ -37,9 +37,9 @@ class ControlPlaneTest {
     private fun client() = ControlPlane("http://127.0.0.1:${server.address.port}/", "s3cret")
 
     @Test
-    fun `no step waiting is null, and the token is sent`() {
+    fun `no step waiting is null, the token is sent, and the runner says it takes drafts`() {
         assertNull(client().claim(0))
-        assertEquals("POST /api/runner/claim?waitSeconds=0 Bearer s3cret", seen.single())
+        assertEquals("POST /api/runner/claim?waitSeconds=0&drafts=true Bearer s3cret", seen.single())
     }
 
     @Test

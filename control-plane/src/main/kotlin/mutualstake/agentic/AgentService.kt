@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import mutualstake.agents.AgentStoppedException
 import mutualstake.agents.BuyerAgent
 import mutualstake.agents.Claude
+import mutualstake.agents.JobProposal
 import mutualstake.agents.JobRejectedException
+import mutualstake.agents.ReportOutcome
+import mutualstake.agents.SellerSpecialty
 import mutualstake.api.ApiException
 import mutualstake.config.MutualStakeProperties
 import mutualstake.contract.Contract
@@ -24,10 +27,13 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.util.UUID
 
-data class JobDraft(val sentence: String, val jobText: String, val feeCapMinor: Long, val deadlineAt: Instant, val verifier: Verifier)
+/** [sellerAgent] is the seller's agent the buyer's agent picked for the job. */
+data class JobDraft(val sentence: String, val jobText: String, val feeCapMinor: Long, val deadlineAt: Instant, val verifier: Verifier, val sellerAgent: SellerSpecialty)
 
 enum class DeliveryMode {
     /** The seller's agent writes it and dry-runs it against the verifier until it passes. */
@@ -52,34 +58,73 @@ class AgentService(
     private val outbox: OutboxRepository,
     private val props: MutualStakeProperties,
     private val hosting: AgentHosting,
+    private val drafts: DraftRelay,
+    private val agentZone: ZoneId,
     private val mapper: ObjectMapper,
     private val clock: Clock,
 ) {
-    /** The buyer's agent reads the sentence; the test is compiled. Nothing touches PayPal until the person confirms. */
+    /**
+     * The buyer's agent reads the sentence; the test is compiled here. Nothing touches PayPal until the person
+     * confirms. With the agents on Astropods the runner reads it, and this process needs no Claude at all.
+     */
     fun draft(sentence: String): JobDraft {
+        val proposal = if (hosting.remote) draftOnRunner(sentence) else draftHere(sentence)
+        val verifier = verifierService.compile(proposal.jobText, mapper.readTree(proposal.test))
+        // A runner built before the roster names no agent: its seller is the blurb writer.
+        return JobDraft(sentence.trim(), proposal.jobText, proposal.feeCapCents, proposal.deadlineAt, verifier, SellerSpecialty.forDeal(proposal.sellerAgent))
+    }
+
+    private fun draftHere(sentence: String): JobProposal {
         requireAgents()
-        val proposal = try {
+        return try {
             buyer.draftJob(sentence, clock.instant())
         } catch (e: JobRejectedException) {
             throw ApiException.unprocessable("job_rejected", e.message ?: "the sentence cannot become a job")
         } catch (e: AgentStoppedException) {
             throw ApiException(HttpStatus.BAD_GATEWAY, "agent_stopped", e.message ?: "the buyer's agent stopped")
         }
-        val verifier = verifierService.compile(proposal.jobText, mapper.readTree(proposal.test))
-        return JobDraft(sentence.trim(), proposal.jobText, proposal.feeCapCents, proposal.deadlineAt, verifier)
     }
 
-    /** The person confirmed the job and its test: open the deal and let the buyer's agent make the first offer. */
+    /**
+     * The same answers as [draftHere], from the runner. Nobody is kept waiting for a runner that is not there, or for
+     * one built before drafting moved, which asks for work but never takes a draft.
+     */
+    private fun draftOnRunner(sentence: String): JobProposal {
+        val since = Instant.now().minus(RUNNER_GONE)
+        fun fresh(at: Instant?) = at != null && at.isAfter(since)
+        if (!fresh(hosting.draftRunnerSeenAt)) {
+            throw if (fresh(hosting.runnerSeenAt)) {
+                ApiException(HttpStatus.SERVICE_UNAVAILABLE, "runner_cannot_draft", "the agent runner on Astropods is an older build that does not draft jobs; redeploy it")
+            } else {
+                ApiException(HttpStatus.SERVICE_UNAVAILABLE, "runner_not_connected", "the agents run on Astropods and their runner is not connected, so nobody can draft the job")
+            }
+        }
+        val report = drafts.ask(sentence, clock.instant(), agentZone, DRAFT_WAIT)
+            ?: throw ApiException(HttpStatus.GATEWAY_TIMEOUT, "runner_timeout", "the agent runner did not draft the job within ${DRAFT_WAIT.seconds} s; try again")
+        return when (report.outcome) {
+            ReportOutcome.DRAFTED -> requireNotNull(report.proposal)
+            ReportOutcome.REJECTED -> throw ApiException.unprocessable("job_rejected", report.reason ?: "the sentence cannot become a job")
+            ReportOutcome.STOPPED -> throw ApiException(HttpStatus.BAD_GATEWAY, "agent_stopped", report.reason ?: "the buyer's agent stopped")
+            else -> throw ApiException(HttpStatus.BAD_GATEWAY, "runner_failed", report.reason ?: "the agent runner could not draft the job")
+        }
+    }
+
+    /**
+     * The person confirmed the job and its test: open the deal and let the buyer's agent make the first offer. The
+     * seller's agent the draft picked does the deal; a client that names none gets the blurb writer.
+     */
     @Transactional
-    fun start(sentence: String, jobText: String, feeCap: Money, deadlineAt: Instant, verifierId: UUID): Contract {
+    fun start(sentence: String, jobText: String, feeCap: Money, deadlineAt: Instant, verifierId: UUID, sellerAgent: String? = null): Contract {
         requireNegotiators()
+        val agent = if (sellerAgent == null) SellerSpecialty.BLURB else SellerSpecialty.of(sellerAgent)
+            ?: throw ApiException.unprocessable("unknown_seller_agent", "the seller has no agent '$sellerAgent'; one of ${SellerSpecialty.entries.joinToString { it.id }}")
         val verifier = verifiers.byId(verifierId) ?: throw ApiException.unprocessable("unknown_verifier", "no verifier $verifierId")
         if (verifier.spec == null) throw ApiException.unprocessable("verifier_not_compiled", "the job's verifier must be compiled from a structured test")
         val deadline = Terms.normalizeDeadline(deadlineAt)
         if (!deadline.isAfter(clock.instant())) throw ApiException.unprocessable("deadline_passed", "the deadline must be in the future")
         val buyerParty = parties.byHandle(props.parties.buyer.handle) ?: throw ApiException(HttpStatus.SERVICE_UNAVAILABLE, "no_credentials", "the buyer is not seeded")
         val contract = negotiation.open(buyerParty, props.parties.seller.handle, jobText, feeCap)
-        jobs.insert(AgentJob(contract.id, sentence.trim(), verifier.id, deadline))
+        jobs.insert(AgentJob(contract.id, sentence.trim(), verifier.id, deadline, agent.id))
         outbox.enqueue(contract.id, OutboxType.AGENT_TURN_BUYER)
         return contract
     }
@@ -110,5 +155,11 @@ class AgentService(
     companion object {
         /** PROTOTYPES' fail-branch delivery, word for word. */
         const val SCRIPTED_JUNK = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor."
+
+        /** Longer than the runner's own step limit (90 s), so a draft it is still writing is not given up on. */
+        val DRAFT_WAIT: Duration = Duration.ofSeconds(100)
+
+        /** A runner that has not asked for work for this long is gone (or all its workers are busy for longer than a step can take). */
+        val RUNNER_GONE: Duration = Duration.ofMinutes(2)
     }
 }

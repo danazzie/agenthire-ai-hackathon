@@ -4,6 +4,7 @@ import mutualstake.agents.CheckAnswer
 import mutualstake.agents.DraftAnswer
 import mutualstake.agents.JobDraftAnswer
 import mutualstake.agents.MoveAnswer
+import mutualstake.api.ApiException
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.ContractState
 import mutualstake.db.TestPostgres
@@ -28,13 +29,19 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.test.context.ActiveProfiles
+import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneId
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 /**
@@ -57,6 +64,7 @@ class RemoteRunnerTest @Autowired constructor(
     private val outbox: OutboxRepository,
     private val poller: OutboxPoller,
     private val hosting: AgentHosting,
+    private val agentJobs: AgentJobRepository,
     private val jdbc: JdbcClient,
 ) {
     private lateinit var runner: Runner
@@ -69,7 +77,9 @@ class RemoteRunnerTest @Autowired constructor(
         quiesceOutbox(jdbc)
         sessions.startNew()
         hosting.remote = true
-        runner = Runner(ControlPlane("http://localhost:$port", "test-runner-token"), claude, ZoneId.of("Europe/Istanbul"))
+        hosting.draftRunnerSeenAt = Instant.now()
+        // Not the control plane's zone (Europe/Istanbul): a draft must still read "by 18:00" in the control plane's.
+        runner = Runner(ControlPlane("http://localhost:$port", "test-runner-token"), claude, ZoneId.of("America/New_York"))
     }
 
     @AfterEach
@@ -82,10 +92,15 @@ class RemoteRunnerTest @Autowired constructor(
             JobDraftAnswer(
                 "A 50-word coffee-shop blurb with no placeholder text (${UUID.randomUUID()}).", "2.00", "18:00", null,
                 listOf(CheckAnswer("word_count", 50, null, null, null, null), CheckAnswer("not_placeholder", null, null, null, null, null)),
+                // Not the default agent, so the pick has to travel: runner, control plane, agent_job, the deal, runner.
+                "social",
             ),
         )
-        val d = agents.draft("50-word coffee-shop blurb, max \$2, by 18:00, no lorem ipsum")
-        return agents.start(d.sentence, d.jobText, Money(d.feeCapMinor), d.deadlineAt, d.verifier.id).id
+        // The draft waits for the runner, so it is asked on another thread while this one runs the runner.
+        val asked = CompletableFuture.supplyAsync { agents.draft("50-word coffee-shop blurb, max \$2, by 18:00, no lorem ipsum") }
+        assertTrue(runner.runOnce(5), "the runner took the draft")
+        val d = asked.get(10, TimeUnit.SECONDS)
+        return agents.start(d.sentence, d.jobText, Money(d.feeCapMinor), d.deadlineAt, d.verifier.id, d.sellerAgent.id).id
     }
 
     /** Runs the runner's steps (and the control plane's own) until neither has anything left. */
@@ -128,7 +143,10 @@ class RemoteRunnerTest @Autowired constructor(
         assertEquals(ContractState.PASS, contracts.find(id)!!.state)
         assertTrue(claude.calls.last().user.contains("Draft 1: FAIL: 47 words."), "the dry-run's answer came back over HTTP")
         // After the last ACCEPT the seller's turn is still queued, and finds the deal locked, as in process.
-        assertEquals(listOf("MOVED", "MOVED", "MOVED", "MOVED", "MOVED", "LOCKED", "DELIVERED"), runner.state.recent.reversed().map { it.report.outcome.name })
+        assertEquals(listOf("DRAFTED", "MOVED", "MOVED", "MOVED", "MOVED", "MOVED", "LOCKED", "DELIVERED"), runner.state.recent.reversed().map { it.report.outcome.name })
+        assertEquals("social", agentJobs.find(id)!!.sellerAgent)
+        val sellerCalls = claude.calls.filter { it.system.contains("You are the seller's agent") }
+        assertTrue(sellerCalls.isNotEmpty() && sellerCalls.all { it.system.contains("Maya's social post writer") }, "the runner's seller is the agent the draft picked")
     }
 
     @Test
@@ -144,5 +162,21 @@ class RemoteRunnerTest @Autowired constructor(
         val buyerTurns = claude.calls.filter { it.system.contains("You are the buyer's agent, negotiating") }
         assertTrue(buyerTurns.last().user.contains("Your last move was refused: over_cap"), "the control plane's over_cap refusal reached the agent")
         assertEquals(ContractState.DRAFT, contracts.find(id)!!.state)
+    }
+
+    @Test
+    fun `the runner drafts with the control plane's clock and zone, and its rejection reaches the person`() {
+        val id = startJob()
+        val local = clock.instant().atZone(ZoneId.of("Europe/Istanbul"))
+        var due = local.toLocalDate().atTime(LocalTime.of(18, 0)).atZone(local.zone)
+        if (!due.isAfter(local)) due = due.plusDays(1)
+        assertEquals(due.toInstant(), agentJobs.find(id)!!.deadlineAt, "18:00 in Istanbul, not in the runner's New York")
+
+        claude.answer(JobDraftAnswer("A blurb.", null, "18:00", null, listOf(CheckAnswer("word_count", 50, null, null, null, null)), "blurb"))
+        val asked = CompletableFuture.supplyAsync { agents.draft("a blurb by 18:00") }
+        assertTrue(runner.runOnce(5))
+        val refused = assertThrows<ExecutionException> { asked.get(10, TimeUnit.SECONDS) }.cause as ApiException
+        assertEquals("job_rejected", refused.code)
+        assertTrue(refused.message!!.startsWith("no price"), refused.message)
     }
 }

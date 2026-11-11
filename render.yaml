@@ -43,13 +43,14 @@ services:
         sync: false
       - key: PAYPAL_SELLER_EMAIL
         sync: false
-      # Optional: without it the agents are off and the scripted job still runs.
+      # Optional: without it the agents are off and the scripted job still runs. With AGENTS_REMOTE on,
+      # the runner holds its own key and this one is used only if you switch back.
       - key: ANTHROPIC_API_KEY
         sync: false
       # Where an agent reads "by 18:00", e.g. Europe/Istanbul. Empty means UTC.
       - key: AGENT_TIMEZONE
         sync: false
-      # "true" hands the negotiation and the seller's delivery to the agent runner on Astropods
+      # "true" hands every agent step (drafting, negotiation, the seller's delivery) to the agent runner on Astropods
       # (agent-runner/README.md); empty or false keeps the agents in this service.
       - key: AGENTS_REMOTE
         sync: false

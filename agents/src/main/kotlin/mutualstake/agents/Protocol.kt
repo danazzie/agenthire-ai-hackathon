@@ -37,6 +37,8 @@ data class Deal(
     /** The structured test the verifier was compiled from, as canonical JSON. */
     val test: String,
     val offers: List<DealOffer>,
+    /** Which of the seller's agents does this deal ([SellerSpecialty.id]); null for a deal opened before the roster. */
+    val sellerAgent: String? = null,
 )
 
 data class DealOffer(val party: String, val kind: String, val feeCents: Long, val bondCents: Long, val note: String?)

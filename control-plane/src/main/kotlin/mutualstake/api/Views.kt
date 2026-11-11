@@ -1,6 +1,8 @@
 package mutualstake.api
 
 import mutualstake.agentic.AgentJobRepository
+import mutualstake.agentic.SellerAgentView
+import mutualstake.agents.SellerSpecialty
 import mutualstake.contract.Contract
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.OfferKind
@@ -137,6 +139,8 @@ data class ContractView(
     val jobText: String,
     /** The person's own sentence, when the agents run the deal (US-1). */
     val sentence: String?,
+    /** Which of the seller's agents does the deal, when the agents run it. */
+    val sellerAgent: SellerAgentView?,
     val feeCapMinor: Long,
     val feeMinor: Long?,
     val bondMinor: Long?,
@@ -253,6 +257,7 @@ class ContractViews(
         val names = mapOf(buyer.id to buyer.displayName, seller.id to seller.displayName)
         val holdRows = holds.forContract(contract.id)
         val delivery = delivery(contract.id)
+        val agentJob = agentJobs.find(contract.id)
         val verifier = contract.verifierId?.let(verifiers::byId)
         val document = if (verifier != null && contract.fee != null && contract.bond != null && contract.deadlineAt != null) {
             TermsDocument.canonical(contract.id, contract.buyerId, contract.sellerId, contract.fee, contract.bond, contract.deadlineAt, verifier.sha256)
@@ -267,7 +272,8 @@ class ContractViews(
             seller = PartyView(seller),
             sellerType = contract.sellerType,
             jobText = contract.jobText,
-            sentence = agentJobs.find(contract.id)?.sentence,
+            sentence = agentJob?.sentence,
+            sellerAgent = agentJob?.let { SellerAgentView(SellerSpecialty.forDeal(it.sellerAgent)) },
             feeCapMinor = contract.feeCap.minor,
             feeMinor = contract.fee?.minor,
             bondMinor = contract.bond?.minor,

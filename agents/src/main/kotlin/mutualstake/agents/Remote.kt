@@ -1,5 +1,6 @@
 package mutualstake.agents
 
+import java.time.Instant
 import java.util.UUID
 
 /*
@@ -8,11 +9,29 @@ import java.util.UUID
  * get, over HTTP, and still nothing on it captures, voids, pays or confirms.
  */
 
-/** Which agent step a queued job asks for: one negotiation turn per side, or the seller's delivery. */
-enum class JobKind { BUYER_TURN, SELLER_TURN, DELIVER }
+/**
+ * Which agent step a job asks for: one negotiation turn per side, the seller's delivery, or turning the person's
+ * sentence into a job (DRAFT). A draft is not a deal yet, so it has no contract and is not in the outbox.
+ */
+enum class JobKind { BUYER_TURN, SELLER_TURN, DELIVER, DRAFT }
 
-/** A step the runner has claimed. The claim is a lease: if no report arrives in time, the step is handed out again. */
-data class RunnerJob(val eventId: UUID, val contractId: UUID, val kind: JobKind, val attempt: Int)
+/**
+ * A step the runner has claimed. For a deal's step the claim is a lease: if no report arrives in time, the step is
+ * handed out again. A DRAFT has no [contractId]; it carries the sentence, and the control plane's clock and zone,
+ * so "by 18:00" reads the same wherever the agent runs. Nobody waits on a lost draft: the person asks again.
+ */
+data class RunnerJob(
+    val eventId: UUID,
+    val contractId: UUID?,
+    val kind: JobKind,
+    val attempt: Int,
+    val sentence: String? = null,
+    val now: Instant? = null,
+    val zone: String? = null,
+) {
+    /** The deal this step is about; every kind but DRAFT has one. (A function, so it is not sent as JSON.) */
+    fun deal(): UUID = requireNotNull(contractId) { "a $kind step has no deal" }
+}
 
 enum class ReportOutcome {
     /** A turn was taken; the other side's turn is next. */
@@ -33,6 +52,12 @@ enum class ReportOutcome {
     /** Every draft failed the verifier, so nothing was delivered. */
     COULD_NOT_MEET_TEST,
 
+    /** The buyer's agent turned the sentence into a job: [RunnerReport.proposal]. */
+    DRAFTED,
+
+    /** The sentence cannot become a job ([RunnerReport.reason] is the one line to show the person). */
+    REJECTED,
+
     /** Claude declined or was cut off: retrying the same step will not help. */
     STOPPED,
 
@@ -40,8 +65,8 @@ enum class ReportOutcome {
     FAILED,
 }
 
-/** What happened to a claimed job. [attempts] and [reason] carry the details of COULD_NOT_MEET_TEST, NO_DEAL, STOPPED and FAILED. */
-data class RunnerReport(val outcome: ReportOutcome, val reason: String? = null, val attempts: Int? = null)
+/** What happened to a claimed job. [attempts] and [reason] carry the details of COULD_NOT_MEET_TEST, NO_DEAL, REJECTED, STOPPED and FAILED. */
+data class RunnerReport(val outcome: ReportOutcome, val reason: String? = null, val attempts: Int? = null, val proposal: JobProposal? = null)
 
 data class ProposeBody(val party: String, val feeCents: Long, val bondCents: Long, val note: String)
 

@@ -24,18 +24,19 @@ import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.util.UUID
 
-data class AgentJob(val contractId: UUID, val sentence: String, val verifierId: UUID, val deadlineAt: Instant)
+/** [sellerAgent] is which of the seller's agents does it ([mutualstake.agents.SellerSpecialty.id]); null on older jobs. */
+data class AgentJob(val contractId: UUID, val sentence: String, val verifierId: UUID, val deadlineAt: Instant, val sellerAgent: String? = null)
 
 @Repository
 class AgentJobRepository(private val jdbc: JdbcClient) {
     fun insert(job: AgentJob) {
-        jdbc.sql("insert into agent_job (contract_id, sentence, verifier_id, deadline_at) values (:c, :s, :v, :d)")
-            .param("c", job.contractId).param("s", job.sentence).param("v", job.verifierId).param("d", job.deadlineAt.toTimestamptz()).update()
+        jdbc.sql("insert into agent_job (contract_id, sentence, verifier_id, deadline_at, seller_agent) values (:c, :s, :v, :d, :a)")
+            .param("c", job.contractId).param("a", job.sellerAgent, java.sql.Types.VARCHAR).param("s", job.sentence).param("v", job.verifierId).param("d", job.deadlineAt.toTimestamptz()).update()
     }
 
     fun find(contractId: UUID): AgentJob? =
         jdbc.sql("select * from agent_job where contract_id = :c").param("c", contractId)
-            .query { rs, _ -> AgentJob(rs.uuid("contract_id"), rs.getString("sentence"), rs.uuid("verifier_id"), rs.instant("deadline_at")) }
+            .query { rs, _ -> AgentJob(rs.uuid("contract_id"), rs.getString("sentence"), rs.uuid("verifier_id"), rs.instant("deadline_at"), rs.getString("seller_agent")) }
             .optional().orElse(null)
 }
 
@@ -73,6 +74,7 @@ class AgentPort(
             verifierSource = verifier.source,
             test = verifier.spec.orEmpty(),
             offers = offers.forContract(contractId).map { DealOffer(handles.getValue(it.partyId), it.kind.name, it.terms.fee.minor, it.terms.bond.minor, it.note) },
+            sellerAgent = job.sellerAgent,
         )
     }
 

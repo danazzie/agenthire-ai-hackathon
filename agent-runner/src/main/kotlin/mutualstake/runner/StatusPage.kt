@@ -3,6 +3,7 @@ package mutualstake.runner
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import mutualstake.agents.ReportOutcome
+import mutualstake.agents.SellerSpecialty
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.time.Instant
@@ -61,10 +62,10 @@ class StatusPage(private val config: RunnerConfig, private val state: RunnerStat
         val rows = state.recent.take(20).joinToString("") {
             val tone = when (it.report.outcome) {
                 ReportOutcome.FAILED, ReportOutcome.STOPPED -> "bad"
-                ReportOutcome.NO_DEAL, ReportOutcome.COULD_NOT_MEET_TEST -> "warn"
+                ReportOutcome.NO_DEAL, ReportOutcome.COULD_NOT_MEET_TEST, ReportOutcome.REJECTED -> "warn"
                 else -> "ok"
             }
-            "<tr><td>${ago(it.at, now)}</td><td><code>${it.job.contractId.toString().take(8)}</code></td><td>${label(it.job.kind.name)}</td>" +
+            "<tr><td>${ago(it.at, now)}</td><td><code>${it.job.contractId?.toString()?.take(8) ?: "sentence"}</code></td><td>${label(it.job.kind.name)}</td>" +
                 "<td><span class=\"pill $tone\">${label(it.report.outcome.name)}</span>${it.report.reason?.let { r -> "<div class=\"why\">${esc(r)}</div>" }.orEmpty()}</td>" +
                 "<td class=\"num\">${it.took.toMillis()} ms</td></tr>"
         }.ifEmpty { "<tr><td colspan=\"5\" class=\"empty\">No steps yet. Start a job on the HireMind screen and the agents' turns appear here.</td></tr>" }
@@ -85,7 +86,7 @@ class StatusPage(private val config: RunnerConfig, private val state: RunnerStat
               .pill { font-size:13px; font-weight:600 } .ok { color:var(--ok) } .warn { color:var(--warn) } .bad { color:var(--bad) } .scroll { overflow-x:auto }
             </style></head><body><main>
             <h1>HireMind agents</h1>
-            <p>The buyer's and the seller's Claude agents. They negotiate and deliver through the control plane's protocol; only the control plane moves money.</p>
+            <p>The buyer's agent and the seller's ${SellerSpecialty.entries.size} Claude agents, one per kind of job. They negotiate and deliver through the control plane's protocol; only the control plane moves money.</p>
             <div class="grid">
               <div class="card"><span>Status</span><b class="${health.second}">${health.first}</b></div>
               <div class="card"><span>Steps run</span><b>${state.claimed.get()}</b></div>
@@ -94,6 +95,9 @@ class StatusPage(private val config: RunnerConfig, private val state: RunnerStat
             </div>
             ${if (config.missing.isNotEmpty()) "<p class=\"bad\">Set ${config.missing.joinToString(", ")} and redeploy.</p>" else ""}
             ${state.lastError?.let { "<p>Last error ${state.lastErrorAt?.let { at -> ago(at, now) }.orEmpty()}: <span class=\"bad\">${esc(it)}</span></p>" }.orEmpty()}
+            <h2 style="font-size:16px;margin:20px 0 8px">Maya's agents</h2>
+            <div class="scroll"><table><thead><tr><th>Agent</th><th>Does</th><th class="num">Usual price</th></tr></thead><tbody>${SellerSpecialty.entries.joinToString("") { "<tr><td>${esc(it.title)}</td><td class=\"why\">${esc(it.does)}</td><td class=\"num\">$${it.usualCents / 100}.${(it.usualCents % 100).toString().padStart(2, '0')}</td></tr>" }}</tbody></table></div>
+            <h2 style="font-size:16px;margin:20px 0 8px">Recent steps</h2>
             <div class="scroll"><table><thead><tr><th>When</th><th>Deal</th><th>Step</th><th>Outcome</th><th class="num">Took</th></tr></thead><tbody>$rows</tbody></table></div>
             <p style="margin-top:16px">Control plane: <code>${esc(config.controlPlaneUrl.ifBlank { "not set" })}</code></p>
             </main></body></html>

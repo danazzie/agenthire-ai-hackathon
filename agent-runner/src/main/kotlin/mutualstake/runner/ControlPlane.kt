@@ -11,6 +11,7 @@ import mutualstake.agents.Deal
 import mutualstake.agents.DeliverBody
 import mutualstake.agents.DryRunBody
 import mutualstake.agents.DryRunResult
+import mutualstake.agents.JobKind
 import mutualstake.agents.MoveRefusedException
 import mutualstake.agents.ProposeBody
 import mutualstake.agents.ProtocolPort
@@ -34,14 +35,16 @@ class ControlPlaneException(val status: Int, val code: String, message: String) 
 class ControlPlane(baseUrl: String, private val token: String, private val http: HttpClient = defaultClient()) : ProtocolPort {
     private val base = baseUrl.trimEnd('/') + "/api/runner"
 
-    /** Waits up to [waitSeconds] on the control plane for the next agent step; null when none came. */
+    /** Waits up to [waitSeconds] on the control plane for the next agent step, drafts included; null when none came. */
     fun claim(waitSeconds: Long): RunnerJob? {
-        val response = send("POST", "/claim?waitSeconds=$waitSeconds", null, Duration.ofSeconds(waitSeconds + 15))
+        val response = send("POST", "/claim?waitSeconds=$waitSeconds&drafts=true", null, Duration.ofSeconds(waitSeconds + 15))
         return if (response.statusCode() == 204) null else json.readValue(response.body())
     }
 
+    /** A draft goes back to the request waiting for it; a deal's step goes back to its outbox event. */
     fun report(job: RunnerJob, report: RunnerReport) {
-        send("POST", "/jobs/${job.eventId}/report", report)
+        val path = if (job.kind == JobKind.DRAFT) "/drafts/${job.eventId}/report" else "/jobs/${job.eventId}/report"
+        send("POST", path, report)
     }
 
     override fun deal(contractId: UUID): Deal = json.readValue(send("GET", "/deals/$contractId", null).body())

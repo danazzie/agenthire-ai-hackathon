@@ -150,6 +150,38 @@
         "tags" : [ "Agents" ]
       }
     },
+    "/api/agents/sellers" : {
+      "get" : {
+        "operationId" : "sellers",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SellerAgentView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A refusal, e.g. not_found, unknown_party, mandate_exceeded, not_funded, deal_in_flight, no_credentials"
+          }
+        },
+        "summary" : "List the seller's agents and what each does",
+        "tags" : [ "Agents" ]
+      }
+    },
     "/api/contracts" : {
       "get" : {
         "operationId" : "list",
@@ -862,6 +894,12 @@
           "seller" : {
             "$ref" : "#/components/schemas/PartyView"
           },
+          "sellerAgent" : {
+            "nullable" : true,
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/SellerAgentView"
+            } ]
+          },
           "sellerType" : {
             "type" : "string",
             "enum" : [ "AGENT", "HUMAN" ]
@@ -1142,7 +1180,7 @@
         }
       },
       "JobDraftView" : {
-        "required" : [ "deadlineAt", "feeCapMinor", "jobText", "sentence", "verifier" ],
+        "required" : [ "deadlineAt", "feeCapMinor", "jobText", "sellerAgent", "sentence", "verifier" ],
         "type" : "object",
         "properties" : {
           "deadlineAt" : {
@@ -1155,6 +1193,9 @@
           },
           "jobText" : {
             "type" : "string"
+          },
+          "sellerAgent" : {
+            "$ref" : "#/components/schemas/SellerAgentView"
           },
           "sentence" : {
             "type" : "string"
@@ -1382,6 +1423,28 @@
           }
         }
       },
+      "SellerAgentView" : {
+        "required" : [ "does", "example", "id", "title", "usualMinor" ],
+        "type" : "object",
+        "properties" : {
+          "does" : {
+            "type" : "string"
+          },
+          "example" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "usualMinor" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
       "SessionView" : {
         "required" : [ "capMinor", "id", "maxJobs", "startedAt" ],
         "type" : "object",
@@ -1423,6 +1486,10 @@
           },
           "jobText" : {
             "type" : "string"
+          },
+          "sellerAgent" : {
+            "type" : "string",
+            "nullable" : true
           },
           "sentence" : {
             "type" : "string"

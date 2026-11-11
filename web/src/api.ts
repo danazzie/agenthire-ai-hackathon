@@ -84,6 +84,8 @@ export interface Contract {
   sellerType: string
   jobText: string
   sentence: string | null
+  /** Which of the seller's agents does the deal (absent from a control plane built before the roster). */
+  sellerAgent?: SellerAgent | null
   feeCapMinor: number
   feeMinor: number | null
   bondMinor: number | null
@@ -119,7 +121,10 @@ export function runnerConnected(status: Status): boolean {
 
 export interface ResetResult { archivedSessionId: string; session: Session; cancelled: string[] }
 
-export interface JobDraft { sentence: string; jobText: string; feeCapMinor: number; deadlineAt: string; verifier: Verifier }
+/** One of the seller's agents: what it does, its usual price, and a sentence to try. */
+export interface SellerAgent { id: string; title: string; does: string; usualMinor: number; example: string }
+
+export interface JobDraft { sentence: string; jobText: string; feeCapMinor: number; deadlineAt: string; verifier: Verifier; sellerAgent?: SellerAgent }
 
 export interface PayPalCall {
   side: Side
@@ -186,9 +191,10 @@ export const api = {
     call<Contract>('POST', '/api/contracts', { seller, jobText, feeCapMinor }, buyer),
   offer: (id: string, party: string, offer: { kind: 'PROPOSE' | 'ACCEPT'; feeMinor: number; bondMinor: number; deadlineAt: string; verifierId: string; note?: string }) =>
     call<Contract>('POST', `/api/contracts/${id}/offers`, offer, party),
+  sellers: () => call<SellerAgent[]>('GET', '/api/agents/sellers'),
   draftJob: (sentence: string) => call<JobDraft>('POST', '/api/agents/jobs/draft', { sentence }),
   startJob: (d: JobDraft) => call<Contract>('POST', '/api/agents/jobs', {
-    sentence: d.sentence, jobText: d.jobText, feeCapMinor: d.feeCapMinor, deadlineAt: d.deadlineAt, verifierId: d.verifier.id,
+    sentence: d.sentence, jobText: d.jobText, feeCapMinor: d.feeCapMinor, deadlineAt: d.deadlineAt, verifierId: d.verifier.id, sellerAgent: d.sellerAgent?.id,
   }),
   deliver: (id: string, mode: 'AGENT' | 'SCRIPTED_JUNK') => call<Contract>('POST', `/api/agents/contracts/${id}/deliver`, { mode }),
   deliverText: (id: string, party: string, text: string) => call<Contract>('POST', `/api/contracts/${id}/deliveries`, { text }, party),
