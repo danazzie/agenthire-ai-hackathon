@@ -31,8 +31,11 @@ internal object Cents {
 class BuyerAgent(private val claude: Claude, private val zone: ZoneId) {
     private val json = jacksonObjectMapper()
 
-    /** US-1: one sentence in, a job with a cap, a deadline and a test out, or a one-line reason. */
-    fun draftJob(sentence: String, now: Instant): JobProposal {
+    /**
+     * US-1: one sentence in, a job with a cap, a deadline and a test out, or a one-line reason. On the runner,
+     * [zone] is the control plane's, so a deadline means the same wherever the agent runs.
+     */
+    fun draftJob(sentence: String, now: Instant, zone: ZoneId = this.zone): JobProposal {
         if (sentence.isBlank()) throw JobRejectedException("describe the job in one sentence")
         val local = now.atZone(zone)
         val answer = claude.call(
@@ -75,7 +78,7 @@ class BuyerAgent(private val claude: Claude, private val zone: ZoneId) {
         } catch (_: DateTimeParseException) {
             return null
         }
-        var due = now.toLocalDate().plusDays((dayOffset ?: 0).toLong().coerceIn(0, 30)).atTime(at).atZone(zone)
+        var due = now.toLocalDate().plusDays((dayOffset ?: 0).toLong().coerceIn(0, 30)).atTime(at).atZone(now.zone)
         if (!due.isAfter(now)) due = due.plusDays(1)
         return due.toInstant()
     }

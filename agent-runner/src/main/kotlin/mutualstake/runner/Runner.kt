@@ -4,6 +4,7 @@ import mutualstake.agents.AgentStoppedException
 import mutualstake.agents.BuyerAgent
 import mutualstake.agents.Claude
 import mutualstake.agents.JobKind
+import mutualstake.agents.JobRejectedException
 import mutualstake.agents.Negotiation
 import mutualstake.agents.ReportOutcome
 import mutualstake.agents.RunnerJob
@@ -66,7 +67,8 @@ class Runner(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val seller = SellerAgent(claude, writingAttempts)
-    private val negotiation = Negotiation(controlPlane, BuyerAgent(claude, zone), seller, maxOffers)
+    private val buyer = BuyerAgent(claude, zone)
+    private val negotiation = Negotiation(controlPlane, buyer, seller, maxOffers)
     private val steps = Executors.newCachedThreadPool { r -> Thread(r, "agent-step").apply { isDaemon = true } }
 
     @Volatile private var running = true
@@ -78,12 +80,12 @@ class Runner(
         if (job == null) return false
         state.claimed.incrementAndGet()
         val started = System.nanoTime()
-        log.info("claimed {} for {} (attempt {})", job.kind, job.contractId, job.attempt)
+        log.info("claimed {} for {} (attempt {})", job.kind, job.contractId ?: "a sentence", job.attempt)
         val report = execute(job)
         reportWithRetries(job, report)
         val took = Duration.ofNanos(System.nanoTime() - started)
         state.record(StepRecord(Instant.now(), job, report, took))
-        log.info("{} for {}: {}{} in {} ms", job.kind, job.contractId, report.outcome, report.reason?.let { " ($it)" }.orEmpty(), took.toMillis())
+        log.info("{} for {}: {}{} in {} ms", job.kind, job.contractId ?: "a sentence", report.outcome, report.reason?.let { " ($it)" }.orEmpty(), took.toMillis())
         return true
     }
 
@@ -97,6 +99,8 @@ class Runner(
             try {
                 return controlPlane.report(job, report)
             } catch (e: ControlPlaneException) {
+                // The person stopped waiting (the control plane gave up, or restarted): nothing to hand the draft to.
+                if (job.kind == JobKind.DRAFT && e.status == 409) return log.warn("draft {} came back too late: {}", job.eventId, e.message)
                 if (e.status < 500) throw e
                 log.warn("report for {} failed: {}; retrying", job.eventId, e.message)
             } catch (e: java.io.IOException) {
@@ -117,25 +121,41 @@ class Runner(
             RunnerReport(ReportOutcome.FAILED, "timeout: ${job.kind} took longer than ${stepTimeout.seconds} s")
         } catch (wrapped: ExecutionException) {
             val e = wrapped.cause ?: wrapped
-            log.warn("{} for {} failed", job.kind, job.contractId, e)
+            log.warn("{} for {} failed", job.kind, job.contractId ?: "a sentence", e)
             RunnerReport(ReportOutcome.FAILED, "${e.javaClass.simpleName}: ${e.message}".take(900))
         }
     }
 
     private fun step(job: RunnerJob): RunnerReport = when (job.kind) {
         JobKind.BUYER_TURN, JobKind.SELLER_TURN -> {
-            val deal = controlPlane.deal(job.contractId)
+            val deal = controlPlane.deal(job.deal())
             val party = if (job.kind == JobKind.BUYER_TURN) deal.buyer else deal.seller
             try {
-                negotiation.turn(job.contractId, party).toReport()
+                negotiation.turn(job.deal(), party).toReport()
             } catch (e: AgentStoppedException) {
                 RunnerReport(ReportOutcome.STOPPED, "$party's agent: ${e.message}")
             }
         }
         JobKind.DELIVER -> try {
-            seller.write(controlPlane.deal(job.contractId), controlPlane).toReport()
+            seller.write(controlPlane.deal(job.deal()), controlPlane).toReport()
         } catch (e: AgentStoppedException) {
             RunnerReport(ReportOutcome.STOPPED, "the seller's agent: ${e.message}")
+        }
+        JobKind.DRAFT -> draft(job)
+    }
+
+    /** US-1 on the runner: the control plane's clock and zone, so the deadline is the one it would have computed. */
+    private fun draft(job: RunnerJob): RunnerReport {
+        val sentence = requireNotNull(job.sentence) { "a draft carries its sentence" }
+        val now = job.now ?: Instant.now()
+        val zone = job.zone?.let(ZoneId::of)
+        return try {
+            val proposal = if (zone == null) buyer.draftJob(sentence, now) else buyer.draftJob(sentence, now, zone)
+            RunnerReport(ReportOutcome.DRAFTED, proposal = proposal)
+        } catch (e: JobRejectedException) {
+            RunnerReport(ReportOutcome.REJECTED, e.message)
+        } catch (e: AgentStoppedException) {
+            RunnerReport(ReportOutcome.STOPPED, "the buyer's agent: ${e.message}")
         }
     }
 

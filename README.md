@@ -120,7 +120,7 @@ Mutations name the acting party in an `X-Party` header: `alex` is the buyer, `ma
 
 Later merges to `main` redeploy both services.
 
-The Claude agents can also run on Astropods, as their own service that calls this API. Set `AGENTS_REMOTE` and `RUNNER_TOKEN` here, then deploy [agent-runner/](agent-runner/README.md) with `ast`. Drafting a job from a sentence stays on this service.
+The Claude agents can also run on Astropods, as their own service that calls this API. Set `AGENTS_REMOTE` and `RUNNER_TOKEN` here, then deploy [agent-runner/](agent-runner/README.md) with `ast`. The runner then does all of the Claude work, drafting included.
 
 The Blueprint uses paid instances, about $13 a month in total; the static site is free.
 

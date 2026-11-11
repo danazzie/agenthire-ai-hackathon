@@ -25,10 +25,15 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.MvcResult
 import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /** AGENTS_REMOTE: the steps wait for the runner, which uses the protocol over HTTP and reports how each ended. */
 @IntegrationTest
@@ -70,7 +75,10 @@ class RunnerEndpointsTest @Autowired constructor(
         content = body?.let(mapper::writeValueAsString) ?: "{}"
     }
 
-    /** A drafted and confirmed job; drafting is the one step that still uses this process's Claude. */
+    /**
+     * A drafted and confirmed job. These tests are about the deal's steps, so the draft is written in process
+     * (with remote off for that one call); the draft over the wire has tests of its own below.
+     */
     private fun startJob(): UUID {
         claude.answer(
             JobDraftAnswer(
@@ -78,7 +86,9 @@ class RunnerEndpointsTest @Autowired constructor(
                 listOf(CheckAnswer("word_count", 50, null, null, null, null)),
             ),
         )
+        hosting.remote = false
         val d = json(mvc.post("/api/agents/jobs/draft") { contentType = MediaType.APPLICATION_JSON; content = """{"sentence":"50-word blurb, max ${'$'}2, by 18:00"}""" })
+        hosting.remote = true
         claude.available = false
         val body = mapOf(
             "sentence" to d.path("sentence").asText(), "jobText" to d.path("jobText").asText(), "feeCapMinor" to d.path("feeCapMinor").asLong(),
@@ -176,5 +186,86 @@ class RunnerEndpointsTest @Autowired constructor(
         val status = json(mvc.get("/api/status"))
         assertEquals("astropods", status.path("agentsHost").asText())
         assertNotNull(status.path("runnerSeenAt").textValue())
+    }
+
+    /** POSTs the draft on another thread, since it waits for the runner; the test thread plays the runner. */
+    private fun draftInBackground(sentence: String): CompletableFuture<MvcResult> = CompletableFuture.supplyAsync {
+        mvc.post("/api/agents/jobs/draft") { contentType = MediaType.APPLICATION_JSON; content = mapper.writeValueAsString(mapOf("sentence" to sentence)) }.andReturn()
+    }
+
+    private fun claimDraft(): JsonNode {
+        val job = json(runner("/api/runner/claim?drafts=true&waitSeconds=5").andExpect { status { isOk() } })
+        assertEquals("DRAFT", job.path("kind").asText())
+        return job
+    }
+
+    @Test
+    fun `with the agents remote, a draft is written by the runner and this process needs no Claude`() {
+        claude.available = false
+        assertTrue(json(mvc.get("/api/status")).path("agentsConfigured").asBoolean(), "the runner holds the key, so drafting stays on")
+        runner("/api/runner/claim?drafts=true").andExpect { status { isNoContent() } }
+        val asked = draftInBackground("50-word blurb, max \$2, by 18:00")
+
+        val job = claimDraft()
+        assertEquals("50-word blurb, max \$2, by 18:00", job.path("sentence").asText())
+        assertTrue(job.path("contractId").isNull, "a draft is not a deal yet")
+        assertEquals(clock.instant(), Instant.parse(job.path("now").asText()), "the control plane's clock")
+        assertEquals("Europe/Istanbul", job.path("zone").asText(), "the control plane's zone")
+
+        val deadline = clock.instant().plus(Duration.ofHours(3))
+        val proposal = mapOf("jobText" to "A 50-word blurb.", "feeCapCents" to 200, "deadlineAt" to deadline.toString(), "test" to """{"checks":[{"type":"word_count","equals":50}]}""")
+        runner("/api/runner/drafts/${job.path("eventId").asText()}/report", mapOf("outcome" to "DRAFTED", "proposal" to proposal)).andExpect { status { isNoContent() } }
+
+        val response = asked.get(10, TimeUnit.SECONDS).response
+        assertEquals(200, response.status)
+        val draft = mapper.readTree(response.contentAsString)
+        assertEquals(200, draft.path("feeCapMinor").asInt())
+        assertEquals(deadline, Instant.parse(draft.path("deadlineAt").asText()))
+        assertTrue(draft.path("verifier").path("source").asText().contains("function verify(text)"), "the test is compiled here, from the runner's answer")
+        assertTrue(claude.calls.isEmpty(), "this process's Claude was never called")
+        runner("/api/runner/drafts/${job.path("eventId").asText()}/report", mapOf("outcome" to "REJECTED", "reason" to "late")).andExpect {
+            status { isConflict() }
+            jsonPath("$.code") { value("draft_closed") }
+        }
+    }
+
+    @Test
+    fun `a sentence the runner rejects comes back as job_rejected with its reason, and an old runner is never handed a draft`() {
+        runner("/api/runner/claim?drafts=true").andExpect { status { isNoContent() } }
+        val asked = draftInBackground("a blurb by 18:00")
+        Thread.sleep(300)
+        runner("/api/runner/claim").andExpect { status { isNoContent() } }
+
+        val job = claimDraft()
+        runner("/api/runner/drafts/${job.path("eventId").asText()}/report", mapOf("outcome" to "DRAFTED")).andExpect {
+            status { isUnprocessableEntity() }
+            jsonPath("$.code") { value("no_proposal") }
+        }
+        runner("/api/runner/drafts/${job.path("eventId").asText()}/report", mapOf("outcome" to "MOVED")).andExpect {
+            status { isUnprocessableEntity() }
+            jsonPath("$.code") { value("outcome_mismatch") }
+        }
+        runner("/api/runner/drafts/${job.path("eventId").asText()}/report", mapOf("outcome" to "REJECTED", "reason" to "no price: say the most you will pay")).andExpect { status { isNoContent() } }
+        val response = asked.get(10, TimeUnit.SECONDS).response
+        assertEquals(422, response.status)
+        assertEquals("job_rejected", mapper.readTree(response.contentAsString).path("code").asText())
+        assertEquals("no price: say the most you will pay", mapper.readTree(response.contentAsString).path("detail").asText())
+    }
+
+    @Test
+    fun `without a connected runner that drafts, a draft is refused at once, not left waiting`() {
+        hosting.runnerSeenAt = null
+        hosting.draftRunnerSeenAt = null
+        mvc.post("/api/agents/jobs/draft") { contentType = MediaType.APPLICATION_JSON; content = """{"sentence":"a blurb"}""" }.andExpect {
+            status { isServiceUnavailable() }
+            jsonPath("$.code") { value("runner_not_connected") }
+        }
+        // A runner built before drafting moved asks for work, but would never take the draft.
+        runner("/api/runner/claim").andExpect { status { isNoContent() } }
+        mvc.post("/api/agents/jobs/draft") { contentType = MediaType.APPLICATION_JSON; content = """{"sentence":"a blurb"}""" }.andExpect {
+            status { isServiceUnavailable() }
+            jsonPath("$.code") { value("runner_cannot_draft") }
+        }
+        assertTrue(claude.calls.isEmpty())
     }
 }

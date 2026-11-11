@@ -38,7 +38,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Where the agents run. In process (the default), the outbox poller runs their steps. Remote (AGENTS_REMOTE), the
@@ -58,11 +64,56 @@ class AgentHosting(props: MutualStakeProperties, private val poller: OutboxPolle
     @Volatile
     var runnerSeenAt: Instant? = null
 
+    /** When a runner that takes drafts last asked for work. An older runner refreshes only [runnerSeenAt]. */
+    @Volatile
+    var draftRunnerSeenAt: Instant? = null
+
     init {
         remote = props.agents.remoteOn
     }
 
     val host: String get() = if (remote) "astropods" else "in_process"
+}
+
+/**
+ * Drafts waiting for the runner. A draft is a person waiting on an HTTP request, not a deal, so it lives here in
+ * memory instead of in the outbox: if this process restarts, nobody is waiting for the answer any more. (Render
+ * runs one instance of the control plane, so the runner always reports to the process that asked.)
+ */
+@Component
+class DraftRelay {
+    private class Pending(val job: RunnerJob) {
+        val answer = CompletableFuture<RunnerReport>()
+    }
+
+    private val waiting = ConcurrentLinkedQueue<Pending>()
+    private val live = ConcurrentHashMap<UUID, Pending>()
+
+    /** Queues the draft for the runner and waits up to [timeout] for its report; null when none came. */
+    fun ask(sentence: String, now: Instant, zone: ZoneId, timeout: Duration): RunnerReport? {
+        val pending = Pending(RunnerJob(UUID.randomUUID(), null, JobKind.DRAFT, 1, sentence, now, zone.id))
+        live[pending.job.eventId] = pending
+        waiting.add(pending)
+        return try {
+            pending.answer.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
+        } catch (_: TimeoutException) {
+            null
+        } finally {
+            live.remove(pending.job.eventId)
+            waiting.remove(pending)
+        }
+    }
+
+    /** The oldest draft someone is still waiting for, if any. Each is handed out once. */
+    fun take(): RunnerJob? {
+        while (true) {
+            val next = waiting.poll() ?: return null
+            if (live.containsKey(next.job.eventId)) return next.job
+        }
+    }
+
+    /** False when nobody is waiting for this draft any more (it timed out, or was never asked here). */
+    fun answer(id: UUID, report: RunnerReport): Boolean = live[id]?.answer?.complete(report) ?: false
 }
 
 /**
@@ -77,12 +128,21 @@ class RunnerService(
     private val outcomes: AgentOutcomes,
     private val contracts: ContractRepository,
     private val hosting: AgentHosting,
+    private val drafts: DraftRelay,
 ) {
-    /** Hands out the oldest due agent step, waiting up to [wait] for one to appear (a long poll, so turns follow quickly). */
-    fun claim(wait: Duration): RunnerJob? {
+    /**
+     * Hands out the oldest due agent step, waiting up to [wait] for one to appear (a long poll, so turns follow
+     * quickly). A person is waiting on a draft, so drafts go first, but only to a runner that says it takes them
+     * ([takesDrafts]): a runner built before drafting moved would not know the job.
+     */
+    fun claim(wait: Duration, takesDrafts: Boolean = false): RunnerJob? {
         val until = System.nanoTime() + wait.toNanos()
         while (true) {
             hosting.runnerSeenAt = Instant.now()
+            if (takesDrafts) {
+                hosting.draftRunnerSeenAt = hosting.runnerSeenAt
+                drafts.take()?.let { return it }
+            }
             for (event in outbox.claimDueOf(AGENT_TYPES, 1, LEASE)) {
                 val kind = event.type.jobKind ?: continue
                 // As in AgentDeliverHandler: a delivery asked for before the holds are in place, or after, does nothing.
@@ -110,6 +170,13 @@ class RunnerService(
                 outbox.markPublished(event.id)
             }
         }
+    }
+
+    /** The runner's answer to a draft, handed to the request still waiting for it. */
+    fun reportDraft(id: UUID, report: RunnerReport) {
+        if (!outcomes.fits(JobKind.DRAFT, report.outcome)) throw ApiException.unprocessable("outcome_mismatch", "a draft cannot end ${report.outcome}")
+        if (report.outcome == ReportOutcome.DRAFTED && report.proposal == null) throw ApiException.unprocessable("no_proposal", "a DRAFTED report carries the proposal")
+        if (!drafts.answer(id, report)) throw ApiException.conflict("draft_closed", "nobody is waiting for draft $id any more")
     }
 
     companion object {
@@ -153,14 +220,18 @@ class RunnerWebConfig(private val auth: RunnerAuth) : WebMvcConfigurer {
 class RunnerController(private val runner: RunnerService, private val port: AgentPort) {
 
     @PostMapping("/claim")
-    fun claim(@RequestParam(defaultValue = "0") waitSeconds: Long): ResponseEntity<RunnerJob> {
+    fun claim(@RequestParam(defaultValue = "0") waitSeconds: Long, @RequestParam(defaultValue = "false") drafts: Boolean): ResponseEntity<RunnerJob> {
         val wait = Duration.ofSeconds(waitSeconds.coerceIn(0, RunnerService.MAX_WAIT.seconds))
-        return runner.claim(wait)?.let { ResponseEntity.ok(it) } ?: ResponseEntity.noContent().build()
+        return runner.claim(wait, drafts)?.let { ResponseEntity.ok(it) } ?: ResponseEntity.noContent().build()
     }
 
     @PostMapping("/jobs/{eventId}/report")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun report(@PathVariable eventId: UUID, @RequestBody report: RunnerReport) = runner.report(eventId, report)
+
+    @PostMapping("/drafts/{id}/report")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun reportDraft(@PathVariable id: UUID, @RequestBody report: RunnerReport) = runner.reportDraft(id, report)
 
     @GetMapping("/deals/{id}")
     fun deal(@PathVariable id: UUID): Deal = port.deal(id)

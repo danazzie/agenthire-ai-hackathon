@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import mutualstake.agents.AgentStoppedException
 import mutualstake.agents.BuyerAgent
 import mutualstake.agents.Claude
+import mutualstake.agents.JobProposal
 import mutualstake.agents.JobRejectedException
+import mutualstake.agents.ReportOutcome
 import mutualstake.api.ApiException
 import mutualstake.config.MutualStakeProperties
 import mutualstake.contract.Contract
@@ -24,7 +26,9 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.util.UUID
 
 data class JobDraft(val sentence: String, val jobText: String, val feeCapMinor: Long, val deadlineAt: Instant, val verifier: Verifier)
@@ -52,21 +56,54 @@ class AgentService(
     private val outbox: OutboxRepository,
     private val props: MutualStakeProperties,
     private val hosting: AgentHosting,
+    private val drafts: DraftRelay,
+    private val agentZone: ZoneId,
     private val mapper: ObjectMapper,
     private val clock: Clock,
 ) {
-    /** The buyer's agent reads the sentence; the test is compiled. Nothing touches PayPal until the person confirms. */
+    /**
+     * The buyer's agent reads the sentence; the test is compiled here. Nothing touches PayPal until the person
+     * confirms. With the agents on Astropods the runner reads it, and this process needs no Claude at all.
+     */
     fun draft(sentence: String): JobDraft {
+        val proposal = if (hosting.remote) draftOnRunner(sentence) else draftHere(sentence)
+        val verifier = verifierService.compile(proposal.jobText, mapper.readTree(proposal.test))
+        return JobDraft(sentence.trim(), proposal.jobText, proposal.feeCapCents, proposal.deadlineAt, verifier)
+    }
+
+    private fun draftHere(sentence: String): JobProposal {
         requireAgents()
-        val proposal = try {
+        return try {
             buyer.draftJob(sentence, clock.instant())
         } catch (e: JobRejectedException) {
             throw ApiException.unprocessable("job_rejected", e.message ?: "the sentence cannot become a job")
         } catch (e: AgentStoppedException) {
             throw ApiException(HttpStatus.BAD_GATEWAY, "agent_stopped", e.message ?: "the buyer's agent stopped")
         }
-        val verifier = verifierService.compile(proposal.jobText, mapper.readTree(proposal.test))
-        return JobDraft(sentence.trim(), proposal.jobText, proposal.feeCapCents, proposal.deadlineAt, verifier)
+    }
+
+    /**
+     * The same answers as [draftHere], from the runner. Nobody is kept waiting for a runner that is not there, or for
+     * one built before drafting moved, which asks for work but never takes a draft.
+     */
+    private fun draftOnRunner(sentence: String): JobProposal {
+        val since = Instant.now().minus(RUNNER_GONE)
+        fun fresh(at: Instant?) = at != null && at.isAfter(since)
+        if (!fresh(hosting.draftRunnerSeenAt)) {
+            throw if (fresh(hosting.runnerSeenAt)) {
+                ApiException(HttpStatus.SERVICE_UNAVAILABLE, "runner_cannot_draft", "the agent runner on Astropods is an older build that does not draft jobs; redeploy it")
+            } else {
+                ApiException(HttpStatus.SERVICE_UNAVAILABLE, "runner_not_connected", "the agents run on Astropods and their runner is not connected, so nobody can draft the job")
+            }
+        }
+        val report = drafts.ask(sentence, clock.instant(), agentZone, DRAFT_WAIT)
+            ?: throw ApiException(HttpStatus.GATEWAY_TIMEOUT, "runner_timeout", "the agent runner did not draft the job within ${DRAFT_WAIT.seconds} s; try again")
+        return when (report.outcome) {
+            ReportOutcome.DRAFTED -> requireNotNull(report.proposal)
+            ReportOutcome.REJECTED -> throw ApiException.unprocessable("job_rejected", report.reason ?: "the sentence cannot become a job")
+            ReportOutcome.STOPPED -> throw ApiException(HttpStatus.BAD_GATEWAY, "agent_stopped", report.reason ?: "the buyer's agent stopped")
+            else -> throw ApiException(HttpStatus.BAD_GATEWAY, "runner_failed", report.reason ?: "the agent runner could not draft the job")
+        }
     }
 
     /** The person confirmed the job and its test: open the deal and let the buyer's agent make the first offer. */
@@ -110,5 +147,11 @@ class AgentService(
     companion object {
         /** PROTOTYPES' fail-branch delivery, word for word. */
         const val SCRIPTED_JUNK = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor."
+
+        /** Longer than the runner's own step limit (90 s), so a draft it is still writing is not given up on. */
+        val DRAFT_WAIT: Duration = Duration.ofSeconds(100)
+
+        /** A runner that has not asked for work for this long is gone (or all its workers are busy for longer than a step can take). */
+        val RUNNER_GONE: Duration = Duration.ofMinutes(2)
     }
 }

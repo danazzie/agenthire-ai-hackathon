@@ -61,10 +61,10 @@ class StatusPage(private val config: RunnerConfig, private val state: RunnerStat
         val rows = state.recent.take(20).joinToString("") {
             val tone = when (it.report.outcome) {
                 ReportOutcome.FAILED, ReportOutcome.STOPPED -> "bad"
-                ReportOutcome.NO_DEAL, ReportOutcome.COULD_NOT_MEET_TEST -> "warn"
+                ReportOutcome.NO_DEAL, ReportOutcome.COULD_NOT_MEET_TEST, ReportOutcome.REJECTED -> "warn"
                 else -> "ok"
             }
-            "<tr><td>${ago(it.at, now)}</td><td><code>${it.job.contractId.toString().take(8)}</code></td><td>${label(it.job.kind.name)}</td>" +
+            "<tr><td>${ago(it.at, now)}</td><td><code>${it.job.contractId?.toString()?.take(8) ?: "sentence"}</code></td><td>${label(it.job.kind.name)}</td>" +
                 "<td><span class=\"pill $tone\">${label(it.report.outcome.name)}</span>${it.report.reason?.let { r -> "<div class=\"why\">${esc(r)}</div>" }.orEmpty()}</td>" +
                 "<td class=\"num\">${it.took.toMillis()} ms</td></tr>"
         }.ifEmpty { "<tr><td colspan=\"5\" class=\"empty\">No steps yet. Start a job on the HireMind screen and the agents' turns appear here.</td></tr>" }

@@ -89,10 +89,11 @@ class ContractController(
     private val claude: Claude,
     private val hosting: AgentHosting,
 ) {
+    // With the agents on Astropods the runner holds the Claude key, so this process needs none of its own.
     @GetMapping("/status")
     @Operation(summary = "Read the control plane status and the current session")
     fun status() = StatusView(
-        paypal.configured, props.paypal.webhooksConfigured, claude.available, parties.all().map(::PartyView), SessionView(sessions.current()), hosting.host, hosting.runnerSeenAt,
+        paypal.configured, props.paypal.webhooksConfigured, claude.available || hosting.remote, parties.all().map(::PartyView), SessionView(sessions.current()), hosting.host, hosting.runnerSeenAt,
     )
 
     /** Compiles a structured test into a verifier and returns its source and SHA-256 (US-1, US-9). */

@@ -22,19 +22,20 @@ class AgentStopped(override val reason: String) : RuntimeException(reason), Clas
     override val retryable = false
 }
 
-/** The outbox event behind each kind of agent step. */
-val JobKind.outboxType: OutboxType
+/** The outbox event behind each kind of agent step. A draft has none: it waits in [DraftRelay], not the outbox. */
+val JobKind.outboxType: OutboxType?
     get() = when (this) {
         JobKind.BUYER_TURN -> OutboxType.AGENT_TURN_BUYER
         JobKind.SELLER_TURN -> OutboxType.AGENT_TURN_SELLER
         JobKind.DELIVER -> OutboxType.AGENT_DELIVER
+        JobKind.DRAFT -> null
     }
 
 val OutboxType.jobKind: JobKind?
     get() = JobKind.entries.firstOrNull { it.outboxType == this }
 
 /** Every outbox event an agent runs, wherever the agents are hosted. */
-val AGENT_TYPES: Set<OutboxType> = JobKind.entries.map { it.outboxType }.toSet()
+val AGENT_TYPES: Set<OutboxType> = JobKind.entries.mapNotNull { it.outboxType }.toSet()
 
 /**
  * What the control plane does once an agent step has finished, whether the agents ran in this process or on a
@@ -53,6 +54,7 @@ class AgentOutcomes(private val outbox: OutboxRepository, private val contracts:
             )
             ReportOutcome.LOCKED, ReportOutcome.NOT_MY_TURN, ReportOutcome.DELIVERED -> Unit
             ReportOutcome.STOPPED, ReportOutcome.FAILED -> throw IllegalArgumentException("${report.outcome} is a failure, not a finished step")
+            ReportOutcome.DRAFTED, ReportOutcome.REJECTED -> throw IllegalArgumentException("${report.outcome} ends a draft, not a deal's step")
         }
     }
 
@@ -60,7 +62,8 @@ class AgentOutcomes(private val outbox: OutboxRepository, private val contracts:
     fun fits(kind: JobKind, outcome: ReportOutcome): Boolean = when (outcome) {
         ReportOutcome.STOPPED, ReportOutcome.FAILED -> true
         ReportOutcome.DELIVERED, ReportOutcome.COULD_NOT_MEET_TEST -> kind == JobKind.DELIVER
-        ReportOutcome.MOVED, ReportOutcome.LOCKED, ReportOutcome.NOT_MY_TURN, ReportOutcome.NO_DEAL -> kind != JobKind.DELIVER
+        ReportOutcome.MOVED, ReportOutcome.LOCKED, ReportOutcome.NOT_MY_TURN, ReportOutcome.NO_DEAL -> kind == JobKind.BUYER_TURN || kind == JobKind.SELLER_TURN
+        ReportOutcome.DRAFTED, ReportOutcome.REJECTED -> kind == JobKind.DRAFT
     }
 
     fun flag(event: OutboxEvent, reason: String) = contracts.flag(event.aggregateId, reason)
@@ -77,7 +80,7 @@ abstract class AgentTurnHandler(
     private val outcomes: AgentOutcomes,
     private val kind: JobKind,
 ) : OutboxHandler {
-    override val type = kind.outboxType
+    override val type = requireNotNull(kind.outboxType)
 
     override fun handle(event: OutboxEvent) {
         val deal = port.deal(event.aggregateId)
