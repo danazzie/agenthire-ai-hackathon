@@ -56,13 +56,14 @@ class BuyerAgent(private val claude: Claude, private val zone: ZoneId) {
                 Effort.MEDIUM,
             ),
         )
+        // First: work none of Maya's agents does would otherwise be refused for a missing price or test, which misleads.
+        val agent = SellerSpecialty.of(answer.sellerAgent)
+            ?: throw JobRejectedException("none of Maya's agents does that: they write ${SellerSpecialty.entries.joinToString { it.title.lowercase().removeSuffix(" writer") + "s" }}")
         val cap = Cents.parse(answer.priceCap)?.takeIf { it > 0 }
             ?: throw JobRejectedException("no price: say the most you will pay, e.g. \"max \$2\"")
         val deadline = deadline(answer.deadlineTime, answer.deadlineDayOffset, local)
             ?: throw JobRejectedException("no deadline: say when it is due, e.g. \"by 18:00\"")
         if (answer.checks.isEmpty()) throw JobRejectedException("no test: say how \"done\" is checked, e.g. \"50 words, no lorem ipsum\"")
-        val agent = SellerSpecialty.of(answer.sellerAgent)
-            ?: throw JobRejectedException("none of Maya's agents does that: they write ${SellerSpecialty.entries.joinToString { it.title.lowercase().removeSuffix(" writer") + "s" }}")
         val words = answer.checks.filter { it.type == "word_count" }.mapNotNull { it.equals ?: it.min }.maxOrNull()
         if (words != null && words > SellerSpecialty.MAX_WORDS) throw JobRejectedException("too long: Maya's agents write at most ${SellerSpecialty.MAX_WORDS} words")
         val checks = answer.checks.map { c ->

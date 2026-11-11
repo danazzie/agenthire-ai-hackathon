@@ -172,7 +172,7 @@ class RemoteRunnerTest @Autowired constructor(
         if (!due.isAfter(local)) due = due.plusDays(1)
         assertEquals(due.toInstant(), agentJobs.find(id)!!.deadlineAt, "18:00 in Istanbul, not in the runner's New York")
 
-        claude.answer(JobDraftAnswer("A blurb.", null, "18:00", null, listOf(CheckAnswer("word_count", 50, null, null, null, null))))
+        claude.answer(JobDraftAnswer("A blurb.", null, "18:00", null, listOf(CheckAnswer("word_count", 50, null, null, null, null)), "blurb"))
         val asked = CompletableFuture.supplyAsync { agents.draft("a blurb by 18:00") }
         assertTrue(runner.runOnce(5))
         val refused = assertThrows<ExecutionException> { asked.get(10, TimeUnit.SECONDS) }.cause as ApiException

@@ -212,6 +212,9 @@ class SellerAgentsTest {
         val none = assertThrows<JobRejectedException> { BuyerAgent(ScriptedClaude(tagline.copy(sellerAgent = "none")), zone).draftJob("a logo, max \$5, by 18:00", now) }
         assertEquals("none of Maya's agents does that: they write blurbs, taglines, social posts, product descriptions, bios, emails", none.message)
         assertThrows<JobRejectedException> { BuyerAgent(ScriptedClaude(tagline.copy(sellerAgent = null)), zone).draftJob("x", now) }
+        // A logo comes back with no price and no checks either: the reason to show is still that nobody here does logos.
+        val logo = tagline.copy(sellerAgent = "none", priceCap = null, checks = emptyList())
+        assertEquals(none.message, assertThrows<JobRejectedException> { BuyerAgent(ScriptedClaude(logo), zone).draftJob("a logo by 18:00", now) }.message)
         val long = tagline.copy(sellerAgent = "blurb", checks = listOf(CheckAnswer("word_count", null, 400, 600, null, null)))
         val tooLong = assertThrows<JobRejectedException> { BuyerAgent(ScriptedClaude(long), zone).draftJob("a 500-word essay", now) }
         assertEquals("too long: Maya's agents write at most 150 words", tooLong.message)
