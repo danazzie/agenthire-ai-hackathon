@@ -92,13 +92,15 @@ class RemoteRunnerTest @Autowired constructor(
             JobDraftAnswer(
                 "A 50-word coffee-shop blurb with no placeholder text (${UUID.randomUUID()}).", "2.00", "18:00", null,
                 listOf(CheckAnswer("word_count", 50, null, null, null, null), CheckAnswer("not_placeholder", null, null, null, null, null)),
+                // Not the default agent, so the pick has to travel: runner, control plane, agent_job, the deal, runner.
+                "social",
             ),
         )
         // The draft waits for the runner, so it is asked on another thread while this one runs the runner.
         val asked = CompletableFuture.supplyAsync { agents.draft("50-word coffee-shop blurb, max \$2, by 18:00, no lorem ipsum") }
         assertTrue(runner.runOnce(5), "the runner took the draft")
         val d = asked.get(10, TimeUnit.SECONDS)
-        return agents.start(d.sentence, d.jobText, Money(d.feeCapMinor), d.deadlineAt, d.verifier.id).id
+        return agents.start(d.sentence, d.jobText, Money(d.feeCapMinor), d.deadlineAt, d.verifier.id, d.sellerAgent.id).id
     }
 
     /** Runs the runner's steps (and the control plane's own) until neither has anything left. */
@@ -142,6 +144,9 @@ class RemoteRunnerTest @Autowired constructor(
         assertTrue(claude.calls.last().user.contains("Draft 1: FAIL: 47 words."), "the dry-run's answer came back over HTTP")
         // After the last ACCEPT the seller's turn is still queued, and finds the deal locked, as in process.
         assertEquals(listOf("DRAFTED", "MOVED", "MOVED", "MOVED", "MOVED", "MOVED", "LOCKED", "DELIVERED"), runner.state.recent.reversed().map { it.report.outcome.name })
+        assertEquals("social", agentJobs.find(id)!!.sellerAgent)
+        val sellerCalls = claude.calls.filter { it.system.contains("You are the seller's agent") }
+        assertTrue(sellerCalls.isNotEmpty() && sellerCalls.all { it.system.contains("Maya's social post writer") }, "the runner's seller is the agent the draft picked")
     }
 
     @Test

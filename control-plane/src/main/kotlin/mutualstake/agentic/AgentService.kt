@@ -7,6 +7,7 @@ import mutualstake.agents.Claude
 import mutualstake.agents.JobProposal
 import mutualstake.agents.JobRejectedException
 import mutualstake.agents.ReportOutcome
+import mutualstake.agents.SellerSpecialty
 import mutualstake.api.ApiException
 import mutualstake.config.MutualStakeProperties
 import mutualstake.contract.Contract
@@ -31,7 +32,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
 
-data class JobDraft(val sentence: String, val jobText: String, val feeCapMinor: Long, val deadlineAt: Instant, val verifier: Verifier)
+/** [sellerAgent] is the seller's agent the buyer's agent picked for the job. */
+data class JobDraft(val sentence: String, val jobText: String, val feeCapMinor: Long, val deadlineAt: Instant, val verifier: Verifier, val sellerAgent: SellerSpecialty)
 
 enum class DeliveryMode {
     /** The seller's agent writes it and dry-runs it against the verifier until it passes. */
@@ -68,7 +70,8 @@ class AgentService(
     fun draft(sentence: String): JobDraft {
         val proposal = if (hosting.remote) draftOnRunner(sentence) else draftHere(sentence)
         val verifier = verifierService.compile(proposal.jobText, mapper.readTree(proposal.test))
-        return JobDraft(sentence.trim(), proposal.jobText, proposal.feeCapCents, proposal.deadlineAt, verifier)
+        // A runner built before the roster names no agent: its seller is the blurb writer.
+        return JobDraft(sentence.trim(), proposal.jobText, proposal.feeCapCents, proposal.deadlineAt, verifier, SellerSpecialty.forDeal(proposal.sellerAgent))
     }
 
     private fun draftHere(sentence: String): JobProposal {
@@ -106,17 +109,22 @@ class AgentService(
         }
     }
 
-    /** The person confirmed the job and its test: open the deal and let the buyer's agent make the first offer. */
+    /**
+     * The person confirmed the job and its test: open the deal and let the buyer's agent make the first offer. The
+     * seller's agent the draft picked does the deal; a client that names none gets the blurb writer.
+     */
     @Transactional
-    fun start(sentence: String, jobText: String, feeCap: Money, deadlineAt: Instant, verifierId: UUID): Contract {
+    fun start(sentence: String, jobText: String, feeCap: Money, deadlineAt: Instant, verifierId: UUID, sellerAgent: String? = null): Contract {
         requireNegotiators()
+        val agent = if (sellerAgent == null) SellerSpecialty.BLURB else SellerSpecialty.of(sellerAgent)
+            ?: throw ApiException.unprocessable("unknown_seller_agent", "the seller has no agent '$sellerAgent'; one of ${SellerSpecialty.entries.joinToString { it.id }}")
         val verifier = verifiers.byId(verifierId) ?: throw ApiException.unprocessable("unknown_verifier", "no verifier $verifierId")
         if (verifier.spec == null) throw ApiException.unprocessable("verifier_not_compiled", "the job's verifier must be compiled from a structured test")
         val deadline = Terms.normalizeDeadline(deadlineAt)
         if (!deadline.isAfter(clock.instant())) throw ApiException.unprocessable("deadline_passed", "the deadline must be in the future")
         val buyerParty = parties.byHandle(props.parties.buyer.handle) ?: throw ApiException(HttpStatus.SERVICE_UNAVAILABLE, "no_credentials", "the buyer is not seeded")
         val contract = negotiation.open(buyerParty, props.parties.seller.handle, jobText, feeCap)
-        jobs.insert(AgentJob(contract.id, sentence.trim(), verifier.id, deadline))
+        jobs.insert(AgentJob(contract.id, sentence.trim(), verifier.id, deadline, agent.id))
         outbox.enqueue(contract.id, OutboxType.AGENT_TURN_BUYER)
         return contract
     }

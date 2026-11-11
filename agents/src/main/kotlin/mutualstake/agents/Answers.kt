@@ -14,6 +14,9 @@ data class JobDraftAnswer(
     val deadlineDayOffset: Int?,
     @get:JsonPropertyDescription("The checks that decide 'done', chosen only from the allowed vocabulary.")
     val checks: List<CheckAnswer>,
+    // An annotation takes a constant, so the ids are spelled out; AgentsTest checks they match SellerSpecialty.
+    @get:JsonPropertyDescription("Which of the seller's agents does this job: blurb, tagline, social, product, bio or email; \"none\" if none of them does this kind of work.")
+    val sellerAgent: String? = null,
 )
 
 data class CheckAnswer(

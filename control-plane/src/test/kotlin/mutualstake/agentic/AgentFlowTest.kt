@@ -7,6 +7,7 @@ import mutualstake.agents.CheckAnswer
 import mutualstake.agents.DraftAnswer
 import mutualstake.agents.JobDraftAnswer
 import mutualstake.agents.MoveAnswer
+import mutualstake.agents.SellerSpecialty
 import mutualstake.contract.ContractRepository
 import mutualstake.contract.ContractState
 import mutualstake.hold.HoldRepository
@@ -31,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import java.time.Instant
 import java.time.ZoneId
@@ -51,6 +53,7 @@ class AgentFlowTest @Autowired constructor(
     private val parties: PartyRepository,
     private val outbox: OutboxRepository,
     private val poller: OutboxPoller,
+    private val agentJobs: AgentJobRepository,
     private val jdbc: JdbcClient,
 ) {
     private val sentence = "50-word coffee-shop blurb, max \$2, by 18:00, no lorem ipsum"
@@ -60,6 +63,7 @@ class AgentFlowTest @Autowired constructor(
     private fun us1Draft() = JobDraftAnswer(
         "A 50-word coffee-shop blurb with no placeholder text (${UUID.randomUUID()}).", "2.00", "18:00", null,
         listOf(CheckAnswer("word_count", 50, null, null, null, null), CheckAnswer("language", null, null, null, null, "en"), CheckAnswer("not_placeholder", null, null, null, null, null)),
+        "blurb",
     )
 
     @BeforeEach
@@ -86,7 +90,7 @@ class AgentFlowTest @Autowired constructor(
                 "/api/agents/jobs",
                 mapOf(
                     "sentence" to d.path("sentence").asText(), "jobText" to d.path("jobText").asText(), "feeCapMinor" to d.path("feeCapMinor").asLong(),
-                    "deadlineAt" to d.path("deadlineAt").asText(), "verifierId" to d.path("verifier").path("id").asText(),
+                    "deadlineAt" to d.path("deadlineAt").asText(), "verifierId" to d.path("verifier").path("id").asText(), "sellerAgent" to d.path("sellerAgent").path("id").asText(),
                 ),
             ).andExpect { status { isCreated() } },
         ).path("id").asText(),
@@ -123,7 +127,29 @@ class AgentFlowTest @Autowired constructor(
         assertTrue(due.toInstant().isAfter(clock.instant()))
         assertEquals("""{"checks": [{"type": "word_count", "equals": 50}, {"type": "language", "equals": "en"}, {"type": "not_placeholder"}]}""", d.path("verifier").path("spec").asText())
         assertTrue(d.path("verifier").path("source").asText().contains("function verify(text)"))
+        assertEquals("blurb", d.path("sellerAgent").path("id").asText())
         assertTrue(fake.orders.isEmpty(), "nothing touches PayPal before the person confirms")
+    }
+
+    @Test
+    fun `the seller's agents are listed without Claude, and a job names one of them or none`() {
+        claude.available = false
+        val roster = json(mvc.get("/api/agents/sellers").andExpect { status { isOk() } })
+        assertEquals(SellerSpecialty.entries.map { it.id }, roster.map { it.path("id").asText() })
+        assertTrue(roster.all { it.path("example").asText().isNotBlank() && it.path("usualMinor").asLong() > 0 })
+        claude.available = true
+
+        val d = draft()
+        val body = mutableMapOf<String, Any>(
+            "sentence" to d.path("sentence").asText(), "jobText" to d.path("jobText").asText(), "feeCapMinor" to d.path("feeCapMinor").asLong(),
+            "deadlineAt" to d.path("deadlineAt").asText(), "verifierId" to d.path("verifier").path("id").asText(), "sellerAgent" to "calligraphy",
+        )
+        post("/api/agents/jobs", body).andExpect { status { isUnprocessableEntity() }; jsonPath("\$.code") { value("unknown_seller_agent") } }
+
+        body.remove("sellerAgent")
+        val id = UUID.fromString(json(post("/api/agents/jobs", body).andExpect { status { isCreated() } }).path("id").asText())
+        assertEquals("blurb", agentJobs.find(id)!!.sellerAgent, "a client that names none gets the blurb writer")
+        assertEquals("Blurb writer", json(mvc.get("/api/contracts/$id")).path("sellerAgent").path("title").asText())
     }
 
     @Test

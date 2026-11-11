@@ -84,6 +84,7 @@ class RunnerEndpointsTest @Autowired constructor(
             JobDraftAnswer(
                 "A 50-word coffee-shop blurb (${UUID.randomUUID()}).", "2.00", "18:00", null,
                 listOf(CheckAnswer("word_count", 50, null, null, null, null)),
+                "blurb",
             ),
         )
         hosting.remote = false
@@ -221,6 +222,7 @@ class RunnerEndpointsTest @Autowired constructor(
         val draft = mapper.readTree(response.contentAsString)
         assertEquals(200, draft.path("feeCapMinor").asInt())
         assertEquals(deadline, Instant.parse(draft.path("deadlineAt").asText()))
+        assertEquals("blurb", draft.path("sellerAgent").path("id").asText(), "a runner built before the roster names no agent: the blurb writer does it")
         assertTrue(draft.path("verifier").path("source").asText().contains("function verify(text)"), "the test is compiled here, from the runner's answer")
         assertTrue(claude.calls.isEmpty(), "this process's Claude was never called")
         runner("/api/runner/drafts/${job.path("eventId").asText()}/report", mapOf("outcome" to "REJECTED", "reason" to "late")).andExpect {

@@ -20,7 +20,7 @@ class ScriptedClaude(vararg answers: Any) : Claude {
 }
 
 /** The protocol, in memory: locks when both sides' latest offers are ACCEPTs of the same terms. */
-class FakeProtocol(private val cap: Long = 200) : ProtocolPort {
+class FakeProtocol(private val cap: Long = 200, private val sellerAgent: String? = null) : ProtocolPort {
     val id: UUID = UUID.randomUUID()
     val verifierId: UUID = UUID.randomUUID()
     val offers = mutableListOf<DealOffer>()
@@ -31,7 +31,7 @@ class FakeProtocol(private val cap: Long = 200) : ProtocolPort {
 
     override fun deal(contractId: UUID) = Deal(
         id, state, "50-word coffee-shop blurb", "alex", "maya", cap, Instant.parse("2026-10-21T15:00:00Z"), verifierId, "ab12", "function verify(text) {}",
-        """{"checks":[{"type":"word_count","equals":50}]}""", offers.toList(),
+        """{"checks":[{"type":"word_count","equals":50}]}""", offers.toList(), sellerAgent,
     )
 
     override fun propose(contractId: UUID, party: String, feeCents: Long, bondCents: Long, note: String) {
@@ -59,6 +59,7 @@ class AgentsTest {
     private val us1 = JobDraftAnswer(
         "A 50-word coffee-shop blurb with no placeholder text.", "2.00", "18:00", null,
         listOf(CheckAnswer("word_count", 50, null, null, null, null), CheckAnswer("language", null, null, null, null, "en"), CheckAnswer("not_placeholder", null, null, null, null, null)),
+        "blurb",
     )
 
     // US-1 ---------------------------------------------------------------------------------------------------
@@ -71,6 +72,7 @@ class AgentsTest {
         assertEquals(200, job.feeCapCents)
         assertEquals(Instant.parse("2026-10-21T15:00:00Z"), job.deadlineAt, "18:00 in Istanbul is 15:00 UTC, today")
         assertEquals("""{"checks":[{"type":"word_count","equals":50},{"type":"language","equals":"en"},{"type":"not_placeholder"}]}""", job.test)
+        assertEquals("blurb", job.sellerAgent)
         assertEquals(Effort.MEDIUM, claude.calls.single().effort)
         assertTrue(claude.calls.single().user.contains("<sentence>\n50-word coffee-shop blurb"), "the sentence goes in as data")
     }
@@ -183,5 +185,68 @@ class AgentsTest {
         val outcome = SellerAgent(ScriptedClaude(DraftAnswer("a"), DraftAnswer("b"), DraftAnswer("c"), DraftAnswer("d"))).write(port.deal(port.id), port)
         assertTrue(outcome is WriteOutcome.CouldNotMeetTest)
         assertEquals(emptyList<String>(), port.delivered)
+    }
+}
+
+class SellerAgentsTest {
+    private val zone = ZoneId.of("Europe/Istanbul")
+    private val now = Instant.parse("2026-10-21T10:55:00Z")
+    private val tagline = JobDraftAnswer(
+        "A tagline for Spokes, a bike repair shop.", "1.00", "18:00", null,
+        listOf(CheckAnswer("char_count", null, null, 40, null, null), CheckAnswer("contains", null, null, null, "Spokes", null)),
+        "tagline",
+    )
+
+    @Test
+    fun `the buyer's agent picks one of Maya's agents for the job, and the pick travels with the proposal`() {
+        val claude = ScriptedClaude(tagline)
+        val job = BuyerAgent(claude, zone).draftJob(SellerSpecialty.TAGLINE.example, now)
+        assertEquals("tagline", job.sellerAgent)
+        assertEquals("""{"checks":[{"type":"char_count","max":40},{"type":"contains","phrase":"Spokes"}]}""", job.test)
+        val system = claude.calls.single().system
+        SellerSpecialty.entries.forEach { assertTrue(system.contains("\n- ${it.id}: ${it.does}\n"), "the roster lists ${it.id} at the left margin") }
+    }
+
+    @Test
+    fun `work none of Maya's agents does is refused with a one-line reason, and so is anything too long`() {
+        val none = assertThrows<JobRejectedException> { BuyerAgent(ScriptedClaude(tagline.copy(sellerAgent = "none")), zone).draftJob("a logo, max \$5, by 18:00", now) }
+        assertEquals("none of Maya's agents does that: they write blurbs, taglines, social posts, product descriptions, bios, emails", none.message)
+        assertThrows<JobRejectedException> { BuyerAgent(ScriptedClaude(tagline.copy(sellerAgent = null)), zone).draftJob("x", now) }
+        val long = tagline.copy(sellerAgent = "blurb", checks = listOf(CheckAnswer("word_count", null, 400, 600, null, null)))
+        val tooLong = assertThrows<JobRejectedException> { BuyerAgent(ScriptedClaude(long), zone).draftJob("a 500-word essay", now) }
+        assertEquals("too long: Maya's agents write at most 150 words", tooLong.message)
+    }
+
+    @Test
+    fun `the seller's agent on the deal negotiates at its own price and writes in its own craft`() {
+        val port = FakeProtocol(cap = 100, sellerAgent = "tagline")
+        port.offers += DealOffer("alex", "PROPOSE", 70, 20, "opening")
+        val claude = ScriptedClaude(MoveAnswer("counter", "0.90", "0.25", "My usual."), DraftAnswer("Spokes: we fix the ride."))
+        port.dryRuns += DryRunResult("PASS", "24 characters.", emptyList())
+
+        Negotiation(port, BuyerAgent(ScriptedClaude(), zone), SellerAgent(claude)).turn(port.id, "maya")
+        SellerAgent(claude).write(port.deal(port.id), port)
+
+        assertTrue(claude.calls[0].system.contains("Maya's tagline writer"))
+        assertTrue(claude.calls[0].system.contains("about \$0.90 and you will not go below \$0.60"))
+        assertTrue(claude.calls[1].system.contains(SellerSpecialty.TAGLINE.craft))
+    }
+
+    @Test
+    fun `a deal from before the roster is the blurb writer's, as it always was`() {
+        assertEquals(SellerSpecialty.BLURB, SellerSpecialty.forDeal(null))
+        assertEquals(SellerSpecialty.BLURB, SellerSpecialty.forDeal("calligraphy"))
+        assertEquals(SellerSpecialty.EMAIL, SellerSpecialty.forDeal(" Email "))
+    }
+
+    @Test
+    fun `every example sentence leaves the agent room above its floor, and the schema names every agent`() {
+        SellerSpecialty.entries.forEach { s ->
+            val cap = Regex("""max \$(\d+(?:\.\d{2})?)""").find(s.example)?.groupValues?.get(1).let(Cents::parse)
+            assertTrue(cap != null && cap > s.floorCents && s.floorCents < s.usualCents, "${s.id}: cap $cap, floor ${s.floorCents}")
+        }
+        val described = JobDraftAnswer::class.java.getMethod("getSellerAgent")
+            .getAnnotation(com.fasterxml.jackson.annotation.JsonPropertyDescription::class.java).value
+        SellerSpecialty.entries.forEach { assertTrue(Regex("""\b${it.id}\b""").containsMatchIn(described), "the schema names ${it.id}") }
     }
 }

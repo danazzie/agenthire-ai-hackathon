@@ -13,8 +13,11 @@ import java.util.UUID
 /** A job the person's sentence cannot become, with the one-line reason to show them (US-1). */
 class JobRejectedException(message: String) : RuntimeException(message)
 
-/** The buyer's agent's reading of the sentence: amounts in cents and the deadline as an instant, computed by code. */
-data class JobProposal(val jobText: String, val feeCapCents: Long, val deadlineAt: Instant, val test: String)
+/**
+ * The buyer's agent's reading of the sentence: amounts in cents and the deadline as an instant, computed by code, and
+ * which of the seller's agents does the job ([SellerSpecialty.id]; null only from a runner built before the roster).
+ */
+data class JobProposal(val jobText: String, val feeCapCents: Long, val deadlineAt: Instant, val test: String, val sellerAgent: String? = null)
 
 /** US-dollar amounts as the model writes them ("1.50", "$2"), to integer cents. Never through a float. */
 internal object Cents {
@@ -58,6 +61,10 @@ class BuyerAgent(private val claude: Claude, private val zone: ZoneId) {
         val deadline = deadline(answer.deadlineTime, answer.deadlineDayOffset, local)
             ?: throw JobRejectedException("no deadline: say when it is due, e.g. \"by 18:00\"")
         if (answer.checks.isEmpty()) throw JobRejectedException("no test: say how \"done\" is checked, e.g. \"50 words, no lorem ipsum\"")
+        val agent = SellerSpecialty.of(answer.sellerAgent)
+            ?: throw JobRejectedException("none of Maya's agents does that: they write ${SellerSpecialty.entries.joinToString { it.title.lowercase().removeSuffix(" writer") + "s" }}")
+        val words = answer.checks.filter { it.type == "word_count" }.mapNotNull { it.equals ?: it.min }.maxOrNull()
+        if (words != null && words > SellerSpecialty.MAX_WORDS) throw JobRejectedException("too long: Maya's agents write at most ${SellerSpecialty.MAX_WORDS} words")
         val checks = answer.checks.map { c ->
             buildMap<String, Any> {
                 put("type", c.type)
@@ -68,7 +75,7 @@ class BuyerAgent(private val claude: Claude, private val zone: ZoneId) {
                 if (c.type == "language") put("equals", c.lang ?: "en")
             }
         }
-        return JobProposal(answer.summary.trim(), cap, deadline, json.writeValueAsString(mapOf("checks" to checks)))
+        return JobProposal(answer.summary.trim(), cap, deadline, json.writeValueAsString(mapOf("checks" to checks)), agent.id)
     }
 
     /** "18:00" (and maybe "tomorrow") to the next such moment in the configured zone. The model never does date maths. */
@@ -91,7 +98,7 @@ class SellerAgent(private val claude: Claude, private val maxAttempts: Int = 4) 
     private val log = LoggerFactory.getLogger(javaClass)
 
     fun move(deal: Deal, feedback: String?): MoveAnswer =
-        claude.call(StructuredCall(Prompts.sellerMove, describe(deal, deal.seller, showCap = false, feedback), MoveAnswer::class.java, Effort.LOW))
+        claude.call(StructuredCall(Prompts.sellerMove(SellerSpecialty.forDeal(deal.sellerAgent)), describe(deal, deal.seller, showCap = false, feedback), MoveAnswer::class.java, Effort.LOW))
 
     /**
      * Writes the delivery and runs the deal's own verifier on each draft before delivering (US-9). Delivers only a
@@ -102,7 +109,7 @@ class SellerAgent(private val claude: Claude, private val maxAttempts: Int = 4) 
         repeat(maxAttempts) { attempt ->
             val draft = claude.call(
                 StructuredCall(
-                    Prompts.sellerWrite,
+                    Prompts.sellerWrite(SellerSpecialty.forDeal(deal.sellerAgent)),
                     buildString {
                         appendLine("The job: ${deal.jobText}")
                         appendLine("The agreed test (${deal.test}), compiled to this verifier, SHA-256 ${deal.verifierSha256}:")
